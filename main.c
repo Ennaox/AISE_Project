@@ -13,6 +13,7 @@
 
 unw_addr_space_t as;
 struct UPT_info *ui;
+int cdt = 1;
 
 void on_segfault(int sig)
 {
@@ -20,11 +21,13 @@ void on_segfault(int sig)
 	exit(1);
 }
 
+void child_ready(int sig)
+{
+	cdt = 0;
+}
+
 void backtrace(pid_t child)
 {
-	struct timespec t = { .tv_sec = 1, .tv_nsec = 0 };
-    nanosleep(&t, NULL);
-
 	ui = _UPT_create(child);
 	if (!ui) 
 	{
@@ -32,8 +35,8 @@ void backtrace(pid_t child)
    	}
 	ptrace(PTRACE_ATTACH, child, 0, 0);
 	unw_cursor_t cursor;
-	int remote_cursor = unw_init_remote(&cursor, as, ui);
 
+	int remote_cursor = unw_init_remote(&cursor, as, ui);
 	 if (remote_cursor != 0) {
         if (remote_cursor == UNW_EINVAL) {
             printf("unw_init_remote: UNW_EINVAL\n");
@@ -45,6 +48,7 @@ void backtrace(pid_t child)
             printf("unw_init_remote: UNKNOWN\n");
         }
     }
+    wait(NULL);
 
 	while (unw_step(&cursor) > 0)
 	{
@@ -75,17 +79,20 @@ int main(int argc,char **argv)
 	as = unw_create_addr_space(&_UPT_accessors, 0);
 	pid_t child = 0;
 	child = fork();
-
+	
 	if(child)
 	{
-
+		printf("j'attend %u\n",getpid());
+		raise(SIGSTOP);
+		printf("j'attend plus\n");
 		backtrace(child);
 		wait(NULL);
 	}
 	else
 	{	
+		kill(SIGCONT,getppid());
+		printf("Papa attend plus %u\n",getppid());
 		execvp(argv[1],argv+sizeof(char*));
-		return 0;
 	}
 	return 0;
 }
