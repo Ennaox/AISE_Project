@@ -61,6 +61,7 @@ int detach(pid_t child)
 		printf("Error on PTRACE_DETACH\n");
 		return 6;
 	}
+
 	_UPT_destroy(ui);
 }
 
@@ -87,26 +88,28 @@ int main(int argc, char *argv[])
 			return status;
 		}
 
-		/*while(unw_step(&cursor) > 0)
+		unw_context_t context;
+  		char buf[1024];
+  		unw_getcontext(&context);
+  		unw_init_local(&cursor, &context);
+
+  		sleep(1);
+
+		while(unw_step(&cursor) > 0)
 		{
-			unw_word_t reg;
+			unw_word_t offset, reg;
+       		char func_name[256];
+       		memset(func_name,'\0',256*sizeof(char));
+       	
+       		unw_get_reg(&cursor, UNW_REG_IP, &reg);
+       		unw_get_proc_name(&cursor, func_name, 256*sizeof(char), &offset);
+			printf("%p : (%s+0x%x) [%p]\n", (void *)reg,
+                                          	func_name,
+                                          	(int) offset,
+                                          	(void *) reg);
+	    }
 
-	    	int verif = unw_get_reg(&cursor, UNW_REG_IP, &reg);
-	    	if(verif == UNW_EUNSPEC)
-	    	{
-	    		printf("unw_init_remote: UNW_EUNSPEC\n");
-	            return 7;
-	    	}
-	    	if(verif == UNW_EBADREG)
-	    	{
-	    		printf("unw_init_remote: UNW_EBADREG\n");
-	            return 8;
-	    	}
-
-	    	printf("ip 0x%lx:", reg);
-	    }*/
-
-		int result = 0;
+	    int result = 0;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
 		printf("erreur = %d\n",result);
 
