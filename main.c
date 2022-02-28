@@ -17,6 +17,13 @@ unw_cursor_t cursor;
 
 int attach(pid_t child)
 {
+	ui = _UPT_create(child);
+	if (!ui) 
+	{
+       	printf("_UPT_create failed\n");
+       	return 5;
+   	}
+
     long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
     if(verif==-1)
 	{
@@ -26,13 +33,8 @@ int attach(pid_t child)
 
 	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
 
-	ui = _UPT_create(child);
-	if (!ui) 
-	{
-       	printf("_UPT_create failed\n");
-       	return 5;
-   	}
-	int init_state = unw_init_remote(&cursor,as,&child);
+   	wait(NULL);
+	int init_state = unw_init_remote(&cursor,as,ui);
 
 	if (init_state != 0) 
 	{
@@ -83,12 +85,18 @@ int main(int argc, char *argv[])
 		perror("USAGE: Need argument\n");
 		exit(120);
 	}
+
+	as = unw_create_addr_space(&_UPT_accessors,0);
+	
+	if (!as) {
+        printf("unw_create_addr_space failed\n");
+        return 10;
+    }
 	
 	pid_t child = 0;
 
-	as = unw_create_addr_space(&_UPT_accessors,0);
-
 	child = fork();
+	
 	if(child)
 	{
 		int status = 0;
@@ -101,23 +109,29 @@ int main(int argc, char *argv[])
 		unw_context_t context;
   		char buf[1024];
   		unw_getcontext(&context);
-  		unw_init_local(&cursor, &context);
+  		//unw_init_local(&cursor, &context);
+  		unw_init_remote(&cursor,as,ui);
+
+  		while (unw_step(&cursor) > 0) {
+  			printf("jecherche\n");
+
+			unw_word_t offset, pc;
+			char sym[64];
+
+			if (unw_get_reg(&cursor, UNW_REG_IP, &pc))
+			{
+				printf("ERROR: cannot read program counter\n");
+			}
+
+			printf("0x%lx: ", pc);
+
+			sym[0] = '\0';
+
+			(void) unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+			printf("(%s+0x%lx)\n", sym, offset);
+		}
 
   		wait(NULL);
-
-		while(unw_step(&cursor) > 0)
-		{
-			unw_word_t offset, reg;
-       		char func_name[256];
-       		memset(func_name,'\0',256*sizeof(char));
-       	
-       		unw_get_reg(&cursor, UNW_REG_IP, &reg);
-       		unw_get_proc_name(&cursor, func_name, 256*sizeof(char), &offset);
-			printf("%p : (%s+0x%x) [%p]\n", (void *)reg,
-                                          	func_name,
-                                          	(int) offset,
-                                          	(void *) reg);
-	    }
 
 	    int result = 0;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
