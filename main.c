@@ -17,6 +17,15 @@ unw_cursor_t cursor;
 
 int attach(pid_t child)
 {
+    long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
+    if(verif==-1)
+	{
+		printf("Error on PTRACE_SEIZE\n");
+		return 9;
+	}	
+
+	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
+
 	ui = _UPT_create(child);
 	if (!ui) 
 	{
@@ -50,6 +59,8 @@ int attach(pid_t child)
 	    }
     }
 
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+
     return 0;
 }
 
@@ -80,7 +91,6 @@ int main(int argc, char *argv[])
 	child = fork();
 	if(child)
 	{
-		sleep(1);
 		int status = 0;
 		if(status = attach(child))
 		{
@@ -93,7 +103,7 @@ int main(int argc, char *argv[])
   		unw_getcontext(&context);
   		unw_init_local(&cursor, &context);
 
-  		sleep(1);
+  		wait(NULL);
 
 		while(unw_step(&cursor) > 0)
 		{
@@ -119,13 +129,9 @@ int main(int argc, char *argv[])
     		kill(child,SIGINT);
     		return status;
     	}
-
-    	int err = waitpid(child,NULL,0);
-		
 	}
 	else
 	{
-		ptrace(PTRACE_TRACEME,0,NULL,NULL);
 		execvp(argv[1],argv+sizeof(char *));
 		return 0;
 	}
