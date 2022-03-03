@@ -1,3 +1,13 @@
+/*
+	C debuger
+
+	List of command:
+	'r' or 'run' to launch the sub process and start the tracing
+	'b' or 'breakpoint' to set a breakpoint
+	'bt' or 'backtrace' to show the bactrace of the program
+	'reg' or 'register' to show the register of the program
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,6 +20,15 @@
 #include <libunwind-ptrace.h>
 #include <string.h>
 #include <time.h>
+
+#define BUFF_SIZE 256
+
+typedef struct parsed_str
+{
+	int eargc;
+	char ** eargv;
+} 
+parsed_str;
 
 unw_addr_space_t as;
 struct UPT_info *ui;
@@ -78,16 +97,45 @@ int detach(pid_t child)
 	_UPT_destroy(ui);
 }
 
+int run()
+{
+	printf("Calling run function");
+}
+
+parsed_str parse_str(char *buff)
+{
+	parsed_str parsed;
+	parsed.eargc = 1;
+	printf("%s",buff);
+	for(int i = 0; i<BUFF_SIZE;i++)
+	{
+		if(buff[i] == ' ')
+		{
+			parsed.eargc ++;
+		}
+		if(buff[i] == '\0')
+			break;
+	}
+	printf("%d\n",parsed.eargc);
+	
+	parsed.eargv = malloc(parsed.eargc*sizeof(char*));
+	for(int i = 0; i<parsed.eargc;i++)
+	{
+		parsed.eargv[i] = malloc(BUFF_SIZE*sizeof(char));
+	}
+	
+	strcpy(strtok(buff," "),parsed.eargv[0]);
+	for(int i = 1; i<parsed.eargc; i++)
+	{
+		strcpy(strtok(NULL," "),parsed.eargv[i]);
+		printf("%s\n",parsed.eargv[i]);
+	}
+	return parsed;
+}
+
 int main(int argc, char *argv[])
 {
-	if(argc < 2)
-	{
-		perror("USAGE: Need argument\n");
-		exit(120);
-	}
-
 	as = unw_create_addr_space(&_UPT_accessors,0);
-	
 	if (!as) {
         printf("unw_create_addr_space failed\n");
         return 10;
@@ -95,11 +143,37 @@ int main(int argc, char *argv[])
 	
 	pid_t child = 0;
 
-	child = fork();
+	child = 1;
+	//child = fork();
 	
 	if(child)
 	{
-		int status = 0;
+		char isAttach = 1;
+
+		if(argc < 2)
+		{
+			isAttach = 0;
+			//Not yet implemented
+			perror("WARNING: The debbuger isn't attach to any binary\n Please attach it to a binary with the command 'attach [MyExecutable] [List of argument]\n####Not yet implemented####\n'");
+			exit(150);
+		}
+		char buff[BUFF_SIZE];
+		memset(buff,0,BUFF_SIZE*sizeof(char));
+		char * eargv;
+		char * eargc;
+		while(1)
+		{
+			fgets(buff,BUFF_SIZE,stdin);
+			parsed_str parsed = parse_str(buff);
+			if(!strcmp(buff,"r") || !strcmp(buff,"run"))
+			{
+				run();
+			}
+			else if(!strcmp(buff,"b") || !strcmp(buff,"breakpoint"))
+			{
+				
+			}
+		/* int status = 0;
 		if(status = attach(child))
 		{
 			kill(child,SIGINT);
@@ -142,7 +216,9 @@ int main(int argc, char *argv[])
     	{
     		kill(child,SIGINT);
     		return status;
-    	}
+    	}*/
+			memset(buff,0,1000*sizeof(char));
+		}
 	}
 	else
 	{
