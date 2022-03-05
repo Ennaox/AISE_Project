@@ -6,6 +6,7 @@
 	'b' or 'breakpoint' to set a breakpoint
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
+	'quit' to quit the program
 */
 
 #include <stdio.h>
@@ -97,16 +98,42 @@ int detach(pid_t child)
 	_UPT_destroy(ui);
 }
 
-int run()
+int run(int eargc,char ** eargv)
 {
-	printf("Calling run function");
+	printf("Calling run function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
+}
+
+int break_point(int eargc,char ** eargv)
+{
+	printf("Calling break function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
+}
+
+int backtrace(int eargc,char ** eargv)
+{
+	printf("Calling backtrace function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
+}
+
+int reg(int eargc,char ** eargv)
+{
+	printf("Calling register function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
 }
 
 parsed_str parse_str(char *buff)
 {
 	parsed_str parsed;
 	parsed.eargc = 1;
-	printf("%s",buff);
 	for(int i = 0; i<BUFF_SIZE;i++)
 	{
 		if(buff[i] == ' ')
@@ -115,36 +142,52 @@ parsed_str parse_str(char *buff)
 		}
 		if(buff[i] == '\0')
 			break;
+		if(buff[i] == '\n')
+		{
+			buff[i] = '\0';
+			break;
+		}
 	}
-	printf("%d\n",parsed.eargc);
-	
-	parsed.eargv = malloc(parsed.eargc*sizeof(char*));
+	parsed.eargv = malloc((parsed.eargc+1)*sizeof(char*));
 	for(int i = 0; i<parsed.eargc;i++)
 	{
 		parsed.eargv[i] = malloc(BUFF_SIZE*sizeof(char));
+		memset(parsed.eargv[i],0,BUFF_SIZE*sizeof(char));
 	}
-	
-	strcpy(strtok(buff," "),parsed.eargv[0]);
-	for(int i = 1; i<parsed.eargc; i++)
+	parsed.eargv[parsed.eargc] = NULL;
+	int len = strlen(buff);
+	int j = 0, k=0;
+	for(int i = 0;i<len;i++)
 	{
-		strcpy(strtok(NULL," "),parsed.eargv[i]);
-		printf("%s\n",parsed.eargv[i]);
+		if(buff[i] == ' ')
+		{
+			j++;
+			parsed.eargv[j][k] = '\0';
+			k = 0;
+		}
+		else
+		{
+			parsed.eargv[j][k] = buff[i];
+			k++;
+		}
 	}
 	return parsed;
 }
 
+
+void deallocate_parsed(parsed_str parsed)
+{
+	for(int i = 0; i<parsed.eargc+1;i++)
+	{
+		free(parsed.eargv[i]);
+	}
+	free(parsed.eargv);
+}
+
 int main(int argc, char *argv[])
 {
-	as = unw_create_addr_space(&_UPT_accessors,0);
-	if (!as) {
-        printf("unw_create_addr_space failed\n");
-        return 10;
-    }
 	
 	pid_t child = 0;
-
-	child = 1;
-	//child = fork();
 	
 	if(child)
 	{
@@ -159,71 +202,38 @@ int main(int argc, char *argv[])
 		}
 		char buff[BUFF_SIZE];
 		memset(buff,0,BUFF_SIZE*sizeof(char));
-		char * eargv;
-		char * eargc;
 		while(1)
 		{
 			fgets(buff,BUFF_SIZE,stdin);
 			parsed_str parsed = parse_str(buff);
-			if(!strcmp(buff,"r") || !strcmp(buff,"run"))
+
+			if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 			{
-				run();
+				run(parsed.eargc-1,&parsed.eargv[1]);
 			}
-			else if(!strcmp(buff,"b") || !strcmp(buff,"breakpoint"))
+			else if(!strcmp(parsed.eargv[0],"b") || !strcmp(parsed.eargv[0],"breakpoint"))
 			{
-				
+				break_point(parsed.eargc-1,&parsed.eargv[1]);
 			}
-		/* int status = 0;
-		if(status = attach(child))
-		{
-			kill(child,SIGINT);
-			return status;
-		}
-
-		unw_context_t context;
-  		char buf[1024];
-  		unw_getcontext(&context);
-  		//unw_init_local(&cursor, &context);
-  		unw_init_remote(&cursor,as,ui);
-
-  		while (unw_step(&cursor) > 0) {
-  			printf("jecherche\n");
-
-			unw_word_t offset, pc;
-			char sym[64];
-
-			if (unw_get_reg(&cursor, UNW_REG_IP, &pc))
+			else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
 			{
-				printf("ERROR: cannot read program counter\n");
+				backtrace(parsed.eargc-1,&parsed.eargv[1]);
 			}
-
-			printf("0x%lx: ", pc);
-
-			sym[0] = '\0';
-
-			(void) unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-			printf("(%s+0x%lx)\n", sym, offset);
-		}
-
-  		wait(NULL);
-
-	    int result = 0;
-    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("erreur = %d\n",result);
-
-    	status = detach(child);
-    	if(status)
-    	{
-    		kill(child,SIGINT);
-    		return status;
-    	}*/
+			else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
+			{
+				reg(parsed.eargc-1,&parsed.eargv[1]);
+			}
+			else if(!strcmp(parsed.eargv[0],"quit"))
+			{
+				break;
+			}
+			else
+			{
+				printf("Error: '%s' is an unknown command\n",parsed.eargv[0]);
+			}
+			deallocate_parsed(parsed);
 			memset(buff,0,1000*sizeof(char));
 		}
-	}
-	else
-	{
-		execvp(argv[1],argv+sizeof(char *));
-		return 0;
 	}
 	return 0;
 }
