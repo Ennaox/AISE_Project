@@ -3,7 +3,9 @@
 
 	List of command:
 	'r' or 'run' to launch the sub process and start the tracing
+	'st' or 'step' to launche the sub process in step mode and start the tracing
 	'b' or 'breakpoint' to set a breakpoint
+	'n' or 'next' in step mode to execute the next instruction 
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
 	'quit' to quit the program
@@ -130,6 +132,22 @@ int reg(int eargc,char ** eargv)
 	printf("\n");
 }
 
+int step(int eargc,char ** eargv)
+{
+	printf("Calling step function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
+}
+
+int next(int eargc,char ** eargv)
+{
+	printf("Calling next function with %d argument: ",eargc);
+	for(int i=0;i<eargc;i++)
+		printf("%s ",eargv[i]);
+	printf("\n");
+}
+
 parsed_str parse_str(char *buff)
 {
 	parsed_str parsed;
@@ -186,54 +204,74 @@ void deallocate_parsed(parsed_str parsed)
 
 int main(int argc, char *argv[])
 {
+	printf("################################### C debuger ###################################\n\n"
+		
+		"Made by DIAS Nicolas and LAPLANCHE Alexis\n\n"
+
+		"List of command:\n"
+		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
+		"\t-'st' or 'step' to launche the sub process in step mode and start the tracing\n"
+		"\t-'b' or 'breakpoint' to set a breakpoint\n"
+		"\t-'n' or 'next' in step mode to execute the next instruction\n"
+		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
+		"\t-'reg' or 'register' to show the register of the program\n"
+		"\t-'quit' to quit the program\n\n"
+		
+		"#################################################################################\n\n");
 	
-	pid_t child = 0;
+	pid_t child = 1;
 	
-	if(child)
+	char isAttach = 1;
+
+	if(argc < 2)
 	{
-		char isAttach = 1;
+		isAttach = 0;
+		//Not yet implemented
+		perror("WARNING: The debbuger isn't attach to any binary\n Please attach it to a binary with the command 'attach [MyExecutable] [List of argument]\n####Not yet implemented####\n'");
+		exit(150);
+	}
+	char buff[BUFF_SIZE];
+	memset(buff,0,BUFF_SIZE*sizeof(char));
+	
+	while(1)
+	{
+		fgets(buff,BUFF_SIZE,stdin);
+		parsed_str parsed = parse_str(buff);
 
-		if(argc < 2)
+		if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 		{
-			isAttach = 0;
-			//Not yet implemented
-			perror("WARNING: The debbuger isn't attach to any binary\n Please attach it to a binary with the command 'attach [MyExecutable] [List of argument]\n####Not yet implemented####\n'");
-			exit(150);
+			run(parsed.eargc-1,&parsed.eargv[1]);
 		}
-		char buff[BUFF_SIZE];
-		memset(buff,0,BUFF_SIZE*sizeof(char));
-		while(1)
+		else if(!strcmp(parsed.eargv[0],"b") || !strcmp(parsed.eargv[0],"breakpoint"))
 		{
-			fgets(buff,BUFF_SIZE,stdin);
-			parsed_str parsed = parse_str(buff);
-
-			if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
-			{
-				run(parsed.eargc-1,&parsed.eargv[1]);
-			}
-			else if(!strcmp(parsed.eargv[0],"b") || !strcmp(parsed.eargv[0],"breakpoint"))
-			{
-				break_point(parsed.eargc-1,&parsed.eargv[1]);
-			}
-			else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
-			{
-				backtrace(parsed.eargc-1,&parsed.eargv[1]);
-			}
-			else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
-			{
-				reg(parsed.eargc-1,&parsed.eargv[1]);
-			}
-			else if(!strcmp(parsed.eargv[0],"quit"))
-			{
-				break;
-			}
-			else
-			{
-				printf("Error: '%s' is an unknown command\n",parsed.eargv[0]);
-			}
-			deallocate_parsed(parsed);
-			memset(buff,0,1000*sizeof(char));
+			break_point(parsed.eargc-1,&parsed.eargv[1]);
 		}
+		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
+		{
+			backtrace(parsed.eargc-1,&parsed.eargv[1]);
+		}
+		else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
+		{
+			reg(parsed.eargc-1,&parsed.eargv[1]);
+		}
+		else if(!strcmp(parsed.eargv[0],"n") || !strcmp(parsed.eargv[0],"next"))
+		{
+			next(parsed.eargc-1,&parsed.eargv[1]);
+		}
+		else if(!strcmp(parsed.eargv[0],"st") || !strcmp(parsed.eargv[0],"step"))
+		{
+			step(parsed.eargc-1,&parsed.eargv[1]);
+		}
+		else if(!strcmp(parsed.eargv[0],"quit"))
+		{
+			break;
+		}
+		else
+		{
+			printf("Error: '%s' is an unknown command\n",parsed.eargv[0]);
+		}
+		deallocate_parsed(parsed);
+		memset(buff,0,1000*sizeof(char));
 	}
 	return 0;
 }
