@@ -11,84 +11,79 @@
 #include <string.h>
 #include <time.h>
 
-unw_addr_space_t as;
-struct UPT_info *ui;
-int cdt = 1;
-
-void on_segfault(int sig)
+int attach(pid_t child)
 {
-	printf("Erreur de segmation c'est relou\n");
-	exit(1);
+    long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
+    if(verif==-1)
+	{
+		printf("Error on PTRACE_SEIZE\n");
+		return 9;
+	}	
+
+	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
+
+   	wait(NULL);
+
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+
+    return 0;
 }
 
-void child_ready(int sig)
+int detach(pid_t child)
 {
-	cdt = 0;
-}
 
-void backtrace(pid_t child)
-{
-	sleep(1);
-	ui = _UPT_create(child);
-	if (!ui) 
+	long status = ptrace(PTRACE_DETACH, child, 0, 0);
+	if(status==-1)
 	{
-       	printf("_UPT_create failed\n");
-   	}
-	unw_cursor_t cursor;
-
-	int remote_cursor = unw_init_remote(&cursor, as, ui);
-	 if (remote_cursor != 0) {
-        if (remote_cursor == UNW_EINVAL) {
-            printf("unw_init_remote: UNW_EINVAL\n");
-        } else if (remote_cursor == UNW_EUNSPEC) {
-            printf("unw_init_remote: UNW_EUNSPEC\n");
-        } else if (remote_cursor == UNW_EBADREG) {
-            printf("unw_init_remote: UNW_EBADREG\n");
-        } else {
-            printf("unw_init_remote: UNKNOWN %d\n",remote_cursor);
-        }
-    }
-    wait(NULL);
-
-	while (unw_step(&cursor) > 0)
-	{
-		unw_word_t offset, reg;
-       	char func_name[256];
-       	memset(func_name,'\0',256*sizeof(char));
-       	
-       	unw_get_reg(&cursor, UNW_REG_IP, &reg);
-       	unw_get_proc_name(&cursor, func_name, 256*sizeof(char), &offset);
-		printf("%p : (%s+0x%x) [%p]\n", (void *)reg,
-                                          func_name,
-                                          (int) offset,
-                                          (void *) reg);
+		printf("Error on PTRACE_DETACH\n");
+		return 6;
 	}
 
-	ptrace(PTRACE_DETACH, child, 0, 0);
-	_UPT_destroy(ui);
+	return 0;
 }
 
-int main(int argc,char **argv)
+
+int main(int argc, char *argv[])
 {
-	signal(SIGSEGV,on_segfault);
-	if(argc<2)
+	if(argc < 2)
 	{
-		printf("Need argument\n");
-		exit(2);
+		perror("USAGE: Need argument\n");
+		exit(120);
 	}
-	as = unw_create_addr_space(&_UPT_accessors, 0);
+	
 	pid_t child = 0;
+
 	child = fork();
 	
 	if(child)
 	{
-		backtrace(child);
-		wait(NULL);
+		int status = 0;
+		if(status = attach(child))
+		{
+			kill(child,SIGINT);
+			return status;
+		}
+
+    	wait(NULL);
+
+    	printf("on essaye\n");
+
+    	int result = 0;
+    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		printf("erreur = %d\n",result);
+
+		status = detach(child);
+    	if(status)
+    	{
+    		kill(child,SIGINT);
+    		return status;
+    	}
 	}
+
 	else
-	{	
-		ptrace(PTRACE_TRACEME, 0, NULL, NULL);
-		execvp(argv[1],argv+sizeof(char*));
+	{
+		execvp(argv[1],argv+sizeof(char *));
+		return 0;
 	}
 	return 0;
 }

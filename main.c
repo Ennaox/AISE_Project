@@ -11,19 +11,12 @@
 #include <string.h>
 #include <time.h>
 
-unw_addr_space_t as;
 struct UPT_info *ui;
+unw_addr_space_t as;
 unw_cursor_t cursor;
 
 int attach(pid_t child)
 {
-	ui = _UPT_create(child);
-	if (!ui) 
-	{
-       	printf("_UPT_create failed\n");
-       	return 5;
-   	}
-
     long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
     if(verif==-1)
 	{
@@ -34,6 +27,41 @@ int attach(pid_t child)
 	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
 
    	wait(NULL);
+
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+
+    return 0;
+}
+
+int detach(pid_t child)
+{
+	long status = ptrace(PTRACE_DETACH, child, 0, 0);
+	if(status==-1)
+	{
+		printf("Error on PTRACE_DETACH\n");
+		return 6;
+	}
+
+	return 0;
+}
+
+int init_backtrace(pid_t child)
+{
+	as = unw_create_addr_space(&_UPT_accessors,0);
+	
+	if (!as) {
+        printf("unw_create_addr_space failed\n");
+        return 10;
+    }
+
+    ui = _UPT_create(child);
+	if (!ui) 
+	{
+		kill(child,SIGINT);
+       	printf("_UPT_create failed\n");
+       	return 5;
+   	}
+
 	int init_state = unw_init_remote(&cursor,as,ui);
 
 	if (init_state != 0) 
@@ -60,21 +88,33 @@ int attach(pid_t child)
 	        return 4;
 	    }
     }
-
-    ptrace(PTRACE_CONT, child, NULL,NULL);
-
-    return 0;
 }
 
-int detach(pid_t child)
+void backtrace()
 {
-	long status = ptrace(PTRACE_DETACH, child, 0, 0);
-	if(status==-1)
-	{
-		printf("Error on PTRACE_DETACH\n");
-		return 6;
-	}
+	while (unw_step(&cursor) > 0) {
+  			printf("dansboucle\n");
 
+			unw_word_t offset, pc;
+			char sym[1024];
+
+			if (unw_get_reg(&cursor, UNW_REG_IP, &pc))
+			{
+				printf("ERROR: cannot read program counter\n");
+			}
+
+			printf("0x%lx: ", pc);
+
+			sym[0] = '\0';
+
+			unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+			printf("(%s+0x%lx)\n", sym, offset);
+		}
+}
+
+void end_backtrace()
+{
+	unw_destroy_addr_space(as);
 	_UPT_destroy(ui);
 }
 
@@ -85,13 +125,6 @@ int main(int argc, char *argv[])
 		perror("USAGE: Need argument\n");
 		exit(120);
 	}
-
-	as = unw_create_addr_space(&_UPT_accessors,0);
-	
-	if (!as) {
-        printf("unw_create_addr_space failed\n");
-        return 10;
-    }
 	
 	pid_t child = 0;
 
@@ -106,36 +139,17 @@ int main(int argc, char *argv[])
 			return status;
 		}
 
-		unw_context_t context;
-  		char buf[1024];
-  		unw_getcontext(&context);
-  		//unw_init_local(&cursor, &context);
-  		unw_init_remote(&cursor,as,ui);
-
-  		while (unw_step(&cursor) > 0) {
-  			printf("jecherche\n");
-
-			unw_word_t offset, pc;
-			char sym[64];
-
-			if (unw_get_reg(&cursor, UNW_REG_IP, &pc))
-			{
-				printf("ERROR: cannot read program counter\n");
-			}
-
-			printf("0x%lx: ", pc);
-
-			sym[0] = '\0';
-
-			(void) unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-			printf("(%s+0x%lx)\n", sym, offset);
-		}
-
   		wait(NULL);
 
-	    int result = 0;
+  		init_backtrace(child);
+
+  		backtrace();
+
+  		end_backtrace();
+
+	    siginfo_t result;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("erreur = %d\n",result);
+		printf("erreur = %d\n",result.si_signo);
 
     	status = detach(child);
     	if(status)
