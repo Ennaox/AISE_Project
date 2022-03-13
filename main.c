@@ -8,6 +8,7 @@
 	'n' or 'next' in step mode to execute the next instruction 
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
+	'attach to attach the debugger to the binary we need to debug'
 	'quit' to quit the program
 */
 
@@ -31,7 +32,7 @@ typedef struct parsed_str
 	int eargc;
 	char ** eargv;
 } 
-parsed_str;
+arg_struct;
 
 unw_addr_space_t as;
 struct UPT_info *ui;
@@ -100,11 +101,11 @@ int detach(pid_t child)
 	_UPT_destroy(ui);
 }
 
-int run(int eargc,char ** eargv)
+int run(arg_struct arg)
 {
-	printf("Calling run function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
+	printf("Calling run function with %d argument: ",arg.eargc);
+	for(int i=0;i<arg.eargc;i++)
+		printf("%s ",arg.eargv[i]);
 	printf("\n");
 }
 
@@ -148,9 +149,25 @@ int next(int eargc,char ** eargv)
 	printf("\n");
 }
 
-parsed_str parse_str(char *buff)
+arg_struct attach_funct(int eargc, char ** eargv)
 {
-	parsed_str parsed;
+	arg_struct arg;
+	arg.eargc = eargc;
+
+	arg.eargv = malloc((arg.eargc+1)*sizeof(char*));
+	for(int i = 0; i<arg.eargc;i++)
+	{
+		arg.eargv[i] = malloc(BUFF_SIZE*sizeof(char));
+		strcpy(arg.eargv[i],eargv[i]);
+	}
+	arg.eargv[arg.eargc] = NULL;
+
+	return arg;
+}
+
+arg_struct parse_str(char *buff)
+{
+	arg_struct parsed;
 	parsed.eargc = 1;
 	for(int i = 0; i<BUFF_SIZE;i++)
 	{
@@ -193,7 +210,7 @@ parsed_str parse_str(char *buff)
 }
 
 
-void deallocate_parsed(parsed_str parsed)
+void deallocate_parsed(arg_struct parsed)
 {
 	for(int i = 0; i<parsed.eargc+1;i++)
 	{
@@ -210,25 +227,35 @@ int main(int argc, char *argv[])
 
 		"List of command:\n"
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
-		"\t-'st' or 'step' to launche the sub process in step mode and start the tracing\n"
+		"\t-'st' or 'step' to launch the sub process in step mode and start the tracing\n"
 		"\t-'b' or 'breakpoint' to set a breakpoint\n"
 		"\t-'n' or 'next' in step mode to execute the next instruction\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
+		"\t-'attach' to attach the debugger to the binary we need to debug\n"
 		"\t-'quit' to quit the program\n\n"
 		
 		"#################################################################################\n\n");
 	
 	pid_t child = 1;
-	
+	arg_struct arg;
 	char isAttach = 1;
 
 	if(argc < 2)
 	{
 		isAttach = 0;
-		//Not yet implemented
-		perror("WARNING: The debbuger isn't attach to any binary\n Please attach it to a binary with the command 'attach [MyExecutable] [List of argument]\n####Not yet implemented####\n'");
-		exit(150);
+		printf("WARNING: The debbuger isn't attach to any binary\n\tPlease attach it to a binary with the command 'attach [MyExecutable] [List of argument]'\n");
+	}
+	else
+	{
+		arg.eargc = argc - 1;
+		arg.eargv = malloc((arg.eargc+1)*sizeof(char*));
+		for(int i = 0; i<arg.eargc;i++)
+		{
+			arg.eargv[i] = malloc(BUFF_SIZE*sizeof(char));
+			strcpy(arg.eargv[i],argv[i+1]);
+		}
+		arg.eargv[arg.eargc] = NULL;
 	}
 	char buff[BUFF_SIZE];
 	memset(buff,0,BUFF_SIZE*sizeof(char));
@@ -236,11 +263,18 @@ int main(int argc, char *argv[])
 	while(1)
 	{
 		fgets(buff,BUFF_SIZE,stdin);
-		parsed_str parsed = parse_str(buff);
+		arg_struct parsed = parse_str(buff);
 
 		if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 		{
-			run(parsed.eargc-1,&parsed.eargv[1]);
+			if(isAttach)
+			{
+				run(arg);
+			}
+			else
+			{
+				printf("Can't run: The debuger isn't attach to a binary\n");
+			}
 		}
 		else if(!strcmp(parsed.eargv[0],"b") || !strcmp(parsed.eargv[0],"breakpoint"))
 		{
@@ -262,8 +296,15 @@ int main(int argc, char *argv[])
 		{
 			step(parsed.eargc-1,&parsed.eargv[1]);
 		}
+		else if(!strcmp(parsed.eargv[0],"attach"))
+		{
+			arg = attach_funct(parsed.eargc-1,&parsed.eargv[1]);
+			isAttach = 1;
+		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{
+			deallocate_parsed(arg);
+			deallocate_parsed(parsed);
 			break;
 		}
 		else
@@ -271,7 +312,7 @@ int main(int argc, char *argv[])
 			printf("Error: '%s' is an unknown command\n",parsed.eargv[0]);
 		}
 		deallocate_parsed(parsed);
-		memset(buff,0,1000*sizeof(char));
+		memset(buff,0,BUFF_SIZE*sizeof(char));
 	}
 	return 0;
 }
