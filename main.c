@@ -88,28 +88,43 @@ int init_backtrace(pid_t child)
 	        return 4;
 	    }
     }
+    return 0;
 }
 
 void backtrace()
 {
-	while (unw_step(&cursor) > 0) {
-  			printf("dansboucle\n");
+	int ret = 1;
+	while (ret > 0) {
 
-			unw_word_t offset, pc;
-			char sym[1024];
+		unw_word_t offset, ip, sp;
+		char sym[1024];
 
-			if (unw_get_reg(&cursor, UNW_REG_IP, &pc))
-			{
-				printf("ERROR: cannot read program counter\n");
-			}
+		sym[0] = '\0';
 
-			printf("0x%lx: ", pc);
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		printf("%lx et %lx\n",ip, sp);
 
-			sym[0] = '\0';
+		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+		printf("(%s+0x%lx)\n", sym, offset);
+		ret = unw_step(&cursor);
+	}	
+}
 
-			unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-			printf("(%s+0x%lx)\n", sym, offset);
-		}
+void backtrace_step(unw_cursor_t cursor)
+{
+		unw_word_t offset, ip, sp;
+		char sym[1024];
+
+		sym[0] = '\0';
+
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		printf("%lx et %lx\n",ip, sp);
+
+		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+		printf("(%s+0x%lx)\n", sym, offset);
+		//unw_step(&cursor);
 }
 
 void end_backtrace()
