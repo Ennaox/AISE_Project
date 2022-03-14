@@ -37,16 +37,10 @@ arg_struct;
 unw_addr_space_t as;
 struct UPT_info *ui;
 unw_cursor_t cursor;
+pid_t child;
 
 int attach(pid_t child)
 {
-	ui = _UPT_create(child);
-	if (!ui) 
-	{
-       	printf("_UPT_create failed\n");
-       	return 5;
-   	}
-
     long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
     if(verif==-1)
 	{
@@ -57,6 +51,41 @@ int attach(pid_t child)
 	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
 
    	wait(NULL);
+
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+
+    return 0;
+}
+
+int detach(pid_t child)
+{
+	long status = ptrace(PTRACE_DETACH, child, 0, 0);
+	if(status==-1)
+	{
+		printf("Error on PTRACE_DETACH\n");
+		return 6;
+	}
+
+	return 0;
+}
+
+int init_backtrace(pid_t child)
+{
+	as = unw_create_addr_space(&_UPT_accessors,0);
+	
+	if (!as) {
+        printf("unw_create_addr_space failed\n");
+        return 10;
+    }
+
+    ui = _UPT_create(child);
+	if (!ui) 
+	{
+		kill(child,SIGINT);
+       	printf("_UPT_create failed\n");
+       	return 5;
+   	}
+
 	int init_state = unw_init_remote(&cursor,as,ui);
 
 	if (init_state != 0) 
@@ -83,30 +112,91 @@ int attach(pid_t child)
 	        return 4;
 	    }
     }
-
-    ptrace(PTRACE_CONT, child, NULL,NULL);
-
     return 0;
 }
 
-int detach(pid_t child)
+void backtrace()
 {
-	long status = ptrace(PTRACE_DETACH, child, 0, 0);
-	if(status==-1)
-	{
-		printf("Error on PTRACE_DETACH\n");
-		return 6;
-	}
+	int ret = 1;
+	while (ret > 0) {
 
+		unw_word_t offset, ip, sp;
+		char sym[1024];
+
+		sym[0] = '\0';
+
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		printf("%lx et %lx\n",ip, sp);
+
+		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+		printf("(%s+0x%lx)\n", sym, offset);
+		ret = unw_step(&cursor);
+	}	
+}
+
+void backtrace_step(unw_cursor_t cursor)
+{
+		unw_word_t offset, ip, sp;
+		char sym[1024];
+
+		sym[0] = '\0';
+
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		printf("%lx et %lx\n",ip, sp);
+
+		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
+		printf("(%s+0x%lx)\n", sym, offset);
+		unw_step(&cursor);
+}
+
+void end_backtrace()
+{
+	unw_destroy_addr_space(as);
 	_UPT_destroy(ui);
 }
 
 int run(arg_struct arg)
 {
-	printf("Calling run function with %d argument: ",arg.eargc);
-	for(int i=0;i<arg.eargc;i++)
-		printf("%s ",arg.eargv[i]);
-	printf("\n");
+	pid_t child = 0;
+
+	child = fork();
+	
+	if(child)
+	{
+		int status = 0;
+		if(status = attach(child))
+		{
+			kill(child,SIGINT);
+			return status;
+		}
+
+  		wait(NULL);
+
+  		init_backtrace(child);
+
+  		backtrace();
+
+  		end_backtrace();
+
+	    siginfo_t result;
+    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		printf("erreur = %d\n",result.si_signo);
+
+    	status = detach(child);
+    	if(status)
+    	{
+    		kill(child,SIGINT);
+    		return status;
+    	}
+	}
+	else
+	{
+		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
+		return 0;
+	}
+	return 0;
 }
 
 int break_point(int eargc,char ** eargv)
@@ -117,7 +207,7 @@ int break_point(int eargc,char ** eargv)
 	printf("\n");
 }
 
-int backtrace(int eargc,char ** eargv)
+int backtrace_fct(int eargc,char ** eargv)
 {
 	printf("Calling backtrace function with %d argument: ",eargc);
 	for(int i=0;i<eargc;i++)
@@ -135,18 +225,49 @@ int reg(int eargc,char ** eargv)
 
 int step(int eargc,char ** eargv)
 {
-	printf("Calling step function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
-	printf("\n");
+	pid_t child = 0;
+
+	child = fork();
+	
+	if(child)
+	{
+		int status = 0;
+		if(status = attach(child))
+		{
+			kill(child,SIGINT);
+			return status;
+		}
+
+  		wait(NULL);
+
+  		init_backtrace(child);
+
+  		backtrace_step();
+
+  		end_backtrace();
+
+	    siginfo_t result;
+    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		printf("erreur = %d\n",result.si_signo);
+
+    	status = detach(child);
+    	if(status)
+    	{
+    		kill(child,SIGINT);
+    		return status;
+    	}
+	}
+	else
+	{
+		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
+		return 0;
+	}
+	return 0;
 }
 
 int next(int eargc,char ** eargv)
 {
-	printf("Calling next function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
-	printf("\n");
+	backtrace_step(cursor);
 }
 
 arg_struct attach_funct(int eargc, char ** eargv)
@@ -237,9 +358,10 @@ int main(int argc, char *argv[])
 		
 		"#################################################################################\n\n");
 	
-	pid_t child = 1;
 	arg_struct arg;
 	char isAttach = 1;
+	char isRunning = 0;
+	char isRunnig_step = 0;
 
 	if(argc < 2)
 	{
@@ -282,7 +404,7 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
 		{
-			backtrace(parsed.eargc-1,&parsed.eargv[1]);
+			backtrace_fct(parsed.eargc-1,&parsed.eargv[1]);
 		}
 		else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
 		{
