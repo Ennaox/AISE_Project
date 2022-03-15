@@ -11,7 +11,8 @@ void salut()
 		//sleep(1);
 		printf("Salut je vais crash\n");
 	}
-	kill(getpid(),SIGSEGV);
+	int * t;
+	t[5] = 4;
 }
 
 void bien_et_toi()

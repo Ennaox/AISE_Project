@@ -24,6 +24,7 @@
 #include <libunwind-ptrace.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 #define BUFF_SIZE 256
 
@@ -33,11 +34,17 @@ typedef struct parsed_str
 	char ** eargv;
 } 
 arg_struct;
-
+ 
 unw_addr_space_t as;
 struct UPT_info *ui;
 unw_cursor_t cursor;
+unw_cursor_t BASE_cursor;
 pid_t child;
+
+char isAttach = 1;
+char isRunning = 0;
+char isRunning_step = 0;
+
 
 int attach(pid_t child)
 {
@@ -53,6 +60,18 @@ int attach(pid_t child)
    	wait(NULL);
 
     ptrace(PTRACE_CONT, child, NULL,NULL);
+
+    return 0;
+}
+
+int attach_step(pid_t child)
+{
+    long verif = ptrace(PTRACE_ATTACH, child, NULL, NULL);
+    if(verif==-1)
+	{
+		printf("Error on PTRACE_SEIZE\n");
+		return 9;
+	}	
 
     return 0;
 }
@@ -86,8 +105,8 @@ int init_backtrace(pid_t child)
        	return 5;
    	}
 
-	int init_state = unw_init_remote(&cursor,as,ui);
-
+	int init_state = unw_init_remote(&BASE_cursor,as,ui);
+	cursor = BASE_cursor;
 	if (init_state != 0) 
 	{
         _UPT_destroy(ui);
@@ -125,18 +144,66 @@ void backtrace()
 
 		sym[0] = '\0';
 
-		unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		printf("%lx et %lx\n",ip, sp);
+		// unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		// unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		// printf("%lx et %lx\n",ip, sp);
 
+		unw_proc_info_t proc_info;
 		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-		printf("(%s+0x%lx)\n", sym, offset);
+		unw_get_proc_info(&cursor, &proc_info);
+
+		printf("%lx: (%s+0x%lx)\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
 	}	
 }
 
-void backtrace_step(unw_cursor_t cursor)
+
+void end_backtrace()
 {
+	unw_destroy_addr_space(as);
+	_UPT_destroy(ui);
+}
+
+int run(arg_struct arg)
+{
+	child = 0;
+	isRunning = 1;
+	child = fork();
+	
+	if(child)
+	{
+		char BUFF[BUFF_SIZE];
+		realpath(arg.eargv[0],BUFF);
+		printf("Starting program: %s\nProgram pid: %d\n\n", BUFF,child);
+
+		int status = 0;
+		if(status = attach(child))
+		{
+			kill(child,SIGINT);
+			return status;
+		}
+
+  		wait(NULL);
+  		printf("\n");
+  		init_backtrace(child);
+
+	    siginfo_t result;
+    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		printf("Program receiv the signal %d: %s\nError raised at 0x%lx\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
+
+    	printf("\n");
+	}
+	else
+	{
+		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
+		return 0;
+	}
+	return 0;
+}
+
+int backtrace_step(unw_cursor_t cursor)
+{
+		int val = 1;
 		unw_word_t offset, ip, sp;
 		char sym[1024];
 
@@ -148,25 +215,21 @@ void backtrace_step(unw_cursor_t cursor)
 
 		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
 		printf("(%s+0x%lx)\n", sym, offset);
-		unw_step(&cursor);
+		val = unw_step(&cursor);
+		return val;
 }
 
-void end_backtrace()
+int step(arg_struct arg)
 {
-	unw_destroy_addr_space(as);
-	_UPT_destroy(ui);
-}
-
-int run(arg_struct arg)
-{
-	pid_t child = 0;
+	isRunning_step = 1;
+	child = 0;
 
 	child = fork();
 	
 	if(child)
 	{
 		int status = 0;
-		if(status = attach(child))
+		if(status = attach_step(child))
 		{
 			kill(child,SIGINT);
 			return status;
@@ -175,21 +238,6 @@ int run(arg_struct arg)
   		wait(NULL);
 
   		init_backtrace(child);
-
-  		backtrace();
-
-  		end_backtrace();
-
-	    siginfo_t result;
-    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("erreur = %d\n",result.si_signo);
-
-    	status = detach(child);
-    	if(status)
-    	{
-    		kill(child,SIGINT);
-    		return status;
-    	}
 	}
 	else
 	{
@@ -209,10 +257,16 @@ int break_point(int eargc,char ** eargv)
 
 int backtrace_fct(int eargc,char ** eargv)
 {
-	printf("Calling backtrace function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
-	printf("\n");
+	if(isRunning_step || isRunning)
+	{
+		cursor = BASE_cursor;
+		backtrace(cursor);
+		printf("\n");
+	}
+	else
+	{
+		printf("Error: can't backtrace: no program are running\n");
+	}
 }
 
 int reg(int eargc,char ** eargv)
@@ -223,51 +277,26 @@ int reg(int eargc,char ** eargv)
 	printf("\n");
 }
 
-int step(int eargc,char ** eargv)
+int next(int eargc,char ** eargv)
 {
-	pid_t child = 0;
-
-	child = fork();
-	
-	if(child)
+	if(isRunning_step)
 	{
-		int status = 0;
-		if(status = attach(child))
+		int retval = ptrace(PTRACE_SINGLESTEP, child, NULL,NULL);	
+		printf("%d\n",retval);
+		if(WIFSTOPPED(retval))
 		{
-			kill(child,SIGINT);
-			return status;
-		}
+	  		end_backtrace();
 
-  		wait(NULL);
-
-  		init_backtrace(child);
-
-  		backtrace_step();
-
-  		end_backtrace();
-
-	    siginfo_t result;
-    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("erreur = %d\n",result.si_signo);
-
-    	status = detach(child);
-    	if(status)
-    	{
-    		kill(child,SIGINT);
-    		return status;
-    	}
+		    siginfo_t result;
+	    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+			printf("Program receiv the signal %d: %s\nError raised at 0x%lx\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
+	    }
 	}
 	else
 	{
-		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
-		return 0;
+		printf("Error: Not running in step by step\n");
 	}
-	return 0;
-}
-
-int next(int eargc,char ** eargv)
-{
-	backtrace_step(cursor);
+    printf("\n");
 }
 
 arg_struct attach_funct(int eargc, char ** eargv)
@@ -340,6 +369,20 @@ void deallocate_parsed(arg_struct parsed)
 	free(parsed.eargv);
 }
 
+void end_process()
+{
+	int status = 0;
+	isRunning_step = 0;
+	isRunning = 0;
+	end_backtrace();
+	status = detach(child);
+	if(status)
+	{
+		kill(child,SIGINT);
+		exit(status);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	printf("################################### C debuger ###################################\n\n"
@@ -359,10 +402,7 @@ int main(int argc, char *argv[])
 		"#################################################################################\n\n");
 	
 	arg_struct arg;
-	char isAttach = 1;
-	char isRunning = 0;
-	char isRunnig_step = 0;
-
+	
 	if(argc < 2)
 	{
 		isAttach = 0;
@@ -389,6 +429,10 @@ int main(int argc, char *argv[])
 
 		if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 		{
+			if(isRunning || isRunning_step)
+			{
+				end_process();
+			}
 			if(isAttach)
 			{
 				run(arg);
@@ -416,7 +460,11 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"st") || !strcmp(parsed.eargv[0],"step"))
 		{
-			step(parsed.eargc-1,&parsed.eargv[1]);
+			if(isRunning || isRunning_step)
+			{
+				end_process();
+			}
+			step(arg);
 		}
 		else if(!strcmp(parsed.eargv[0],"attach"))
 		{
@@ -425,6 +473,10 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{
+			if(isRunning || isRunning_step)
+			{
+				end_process();
+			}
 			deallocate_parsed(arg);
 			deallocate_parsed(parsed);
 			break;
