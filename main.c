@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ptrace.h>
+#include <sys/user.h>
 #include <libunwind.h>
 #include <libunwind-x86_64.h>
 #include <libunwind-ptrace.h>
@@ -134,6 +135,32 @@ int init_backtrace(pid_t child)
     return 0;
 }
 
+void get_reg()
+{
+	struct user_regs_struct regs;
+
+    ptrace (PTRACE_GETREGS,0,NULL,&regs);
+
+    printf( "rax = %llx\n"
+    		"rcx = %llx\n"
+    		"rdx = %llx\n"
+    		"rsi = %llx\n"
+    		"rdi = %llx\n"
+    		"rbp = %llx\n"
+    		"rbx = %llx\n"
+    		"r8 = %llx\n"
+    		"r9 = %llx\n"
+    		"r10 = %llx\n"
+    		"r11 = %llx\n"
+    		"r12 = %llx\n"
+    		"r13 = %llx\n"
+    		"r14 = %llx\n"
+    		"r15 = %llx\n"
+    		,regs.rax,regs.rcx,regs.rdx,regs.rsi,regs.rdi
+    		,regs.rbp,regs.rbx,regs.r8,regs.r9,regs.r10
+    		,regs.r11,regs.r12,regs.r13,regs.r14,regs.r15);
+}
+
 void backtrace()
 {
 	int ret = 1;
@@ -156,7 +183,6 @@ void backtrace()
 		ret = unw_step(&cursor);
 	}	
 }
-
 
 void end_backtrace()
 {
