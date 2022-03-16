@@ -3,15 +3,17 @@
 
 	List of command:
 	'r' or 'run' to launch the sub process and start the tracing
-	'st' or 'step' to launche the sub process in step mode and start the tracing
 	'b' or 'breakpoint' to set a breakpoint
-	'n' or 'next' in step mode to execute the next instruction 
+	'p' or 'prev' to unwind stack frame 
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
 	'attach to attach the debugger to the binary we need to debug'
+	'reset' to reset the cursor to the top of the stack
+	'clear' to cleat the terminal
 	'quit' to quit the program
 */
 
+#include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -44,7 +46,6 @@ pid_t child = 0;
 
 char isAttach = 1;
 char isRunning = 0;
-char isRunning_step = 0;
 
 
 int attach(pid_t child)
@@ -61,18 +62,6 @@ int attach(pid_t child)
    	wait(NULL);
 
     ptrace(PTRACE_CONT, child, NULL,NULL);
-
-    return 0;
-}
-
-int attach_step(pid_t child)
-{
-    long verif = ptrace(PTRACE_ATTACH, child, NULL, NULL);
-    if(verif==-1)
-	{
-		printf("Error on PTRACE_SEIZE\n");
-		return 9;
-	}	
 
     return 0;
 }
@@ -166,30 +155,6 @@ void get_reg()
 		unw_get_reg(&cursor, i, &ip);
 		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
 	}
-
-	/*struct user_regs_struct regs;
-
-    ptrace (PTRACE_GETREGS,0,NULL,&regs);
-
-    printf( "rax = 0x%llx	%lld\n"
-    		"rcx = 0x%llx	%lld\n"
-    		"rdx = 0x%llx	%lld\n"
-    		"rsi = 0x%llx	%lld\n"
-    		"rdi = 0x%llx	%lld\n"
-    		"rbp = 0x%llx	%lld\n"
-    		"rbx = 0x%llx	%lld\n"
-    		"r8 = 0x%llx	%lld\n"
-    		"r9 = 0x%llx	%lld\n"
-    		"r10 = 0x%llx	%lld\n"
-    		"r11 = 0x%llx	%lld\n"
-    		"r12 = 0x%llx	%lld\n"
-    		"r13 = 0x%llx	%lld\n"
-    		"r14 = 0x%llx	%lld\n"
-    		"r15 = 0x%llx	%lld\n"
-    		,regs.rax,regs.rax,regs.rcx,regs.rcx,regs.rdx,regs.rdx,regs.rsi,regs.rsi,regs.rdi,regs.rdi
-    		,regs.rbp,regs.rbp,regs.rbx,regs.rbx,regs.r8,regs.r8,regs.r9,regs.r9,regs.r10,regs.r10
-    		,regs.r11,regs.r11,regs.r12,regs.r12,regs.r13,regs.r13,regs.r14,regs.r14,regs.r15,regs.r15);
-*/
 }
 
 void backtrace()
@@ -212,8 +177,8 @@ void backtrace()
 
 		printf("%lx: (%s+0x%lx)\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
-	}	
-	get_reg();
+	}
+	cursor = BASE_cursor;	
 }
 
 void end_backtrace()
@@ -224,6 +189,11 @@ void end_backtrace()
 
 int run(arg_struct arg)
 {
+	printf("\n");
+	if(child)
+	{
+		kill(child,SIGKILL);
+	}
 	child = 0;
 	isRunning = 1;
 	child = fork();
@@ -258,66 +228,21 @@ int run(arg_struct arg)
 	}
 	return 0;
 }
-
-int backtrace_step(unw_cursor_t cursor)
-{
-		int val = 1;
-		unw_word_t offset, ip, sp;
-		char sym[1024];
-
-		sym[0] = '\0';
-
-		unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		printf("%lx et %lx\n",ip, sp);
-
-		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-		printf("(%s+0x%lx)\n", sym, offset);
-		val = unw_step(&cursor);
-		return val;
-}
-
-int step(arg_struct arg)
-{
-	isRunning_step = 1;
-	child = 0;
-
-	child = fork();
 	
-	if(child)
-	{
-		int status = 0;
-		if(status = attach_step(child))
-		{
-			kill(child,SIGINT);
-			return status;
-		}
-
-  		wait(NULL);
-
-  		init_backtrace(child);
-	}
-	else
-	{
-		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
-		return 0;
-	}
-	return 0;
-}
 
 int break_point(int eargc,char ** eargv)
 {
+	printf("\n");
 	printf("Calling break function with %d argument: ",eargc);
 	for(int i=0;i<eargc;i++)
 		printf("%s ",eargv[i]);
-	printf("\n");
+	printf("\n\n");
 }
 
 int backtrace_fct(int eargc,char ** eargv)
 {
-	if(isRunning_step || isRunning)
+	if(isRunning)
 	{
-		cursor = BASE_cursor;
 		backtrace(cursor);
 		printf("\n");
 	}
@@ -329,34 +254,38 @@ int backtrace_fct(int eargc,char ** eargv)
 
 int reg(int eargc,char ** eargv)
 {
-	get_reg();
-	printf("\n");
-}
-
-int next(int eargc,char ** eargv)
-{
-	if(isRunning_step)
+	if(isRunning)
 	{
-		int retval = ptrace(PTRACE_SINGLESTEP, child, NULL,NULL);	
-		printf("%d\n",retval);
-		if(WIFSTOPPED(retval))
-		{
-	  		end_backtrace();
-
-		    siginfo_t result;
-	    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-			printf("Program receiv the signal %d: %s\nError raised at 0x%lx\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
-	    }
+		printf("\n");
+		get_reg();	
 	}
 	else
 	{
-		printf("Error: Not running in step by step\n");
+		printf("No stack frame to read register from\n");
+	}
+	printf("\n");
+}
+
+int prev(int eargc,char ** eargv)
+{
+	if(isRunning)
+	{
+		int status = unw_step(&cursor);
+		if(status <= 0)
+		{
+			printf("No more stack frame to unwind\n");
+		}
+	}
+	else
+	{
+		printf("Error: Not running\n");
 	}
     printf("\n");
 }
 
 arg_struct attach_funct(int eargc, char ** eargv)
 {
+	printf("\n");
 	arg_struct arg;
 	arg.eargc = eargc;
 
@@ -367,7 +296,22 @@ arg_struct attach_funct(int eargc, char ** eargv)
 		strcpy(arg.eargv[i],eargv[i]);
 	}
 	arg.eargv[arg.eargc] = NULL;
+	printf("Now attach to %s",arg.eargv[0]);
+	if(arg.eargc != 1)
+	{
+		printf(" with argument: ");
+		for(int i = 1; i<arg.eargc; i++)
+		{
+			printf("%s ",arg.eargv[i]);
+		}
+	}
+	else
+	{
+		printf("\n");
+	}
 
+	printf("\n");
+	printf("\n");
 	return arg;
 }
 
@@ -428,7 +372,6 @@ void deallocate_parsed(arg_struct parsed)
 void end_process()
 {
 	int status = 0;
-	isRunning_step = 0;
 	isRunning = 0;
 	end_backtrace();
 	status = detach(child);
@@ -439,23 +382,48 @@ void end_process()
 	}
 }
 
-int main(int argc, char *argv[])
+void interface_affic()
 {
-	printf("################################### C debuger ###################################\n\n"
-		
+	int nb_caract = 12;
+
+	struct winsize w;
+	ioctl(0, TIOCGWINSZ, &w);
+	int nb_ast = (w.ws_col - nb_caract)/2;
+	for(int i = 0; i<nb_ast;i++)
+	{
+		printf("#");
+	}
+	printf(" C debuger ");
+	for(int i = 0; i<=nb_ast;i++)
+	{
+		printf("#");
+	}
+	printf("\n\n");
+	printf(
 		"Made by DIAS Nicolas and LAPLANCHE Alexis\n\n"
 
 		"List of command:\n"
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
-		"\t-'st' or 'step' to launch the sub process in step mode and start the tracing\n"
 		"\t-'b' or 'breakpoint' to set a breakpoint\n"
-		"\t-'n' or 'next' in step mode to execute the next instruction\n"
+		"\t-'p' or 'prev' to unwind stack frame\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
 		"\t-'attach' to attach the debugger to the binary we need to debug\n"
+		"\t-'reset' to reset the cursor to the top of the stack frame\n"
+		"\t-'clear' to cleat the terminal\n"
 		"\t-'quit' to quit the program\n\n"
 		
-		"#################################################################################\n\n");
+		);
+	for (int i = 0; i < w.ws_col; i++)
+	{
+		printf("#");
+	}
+	printf("\n\n");
+}
+
+int main(int argc, char *argv[])
+{
+	interface_affic();
 	
 	arg_struct arg;
 	
@@ -485,7 +453,7 @@ int main(int argc, char *argv[])
 
 		if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 		{
-			if(isRunning || isRunning_step)
+			if(isRunning)
 			{
 				end_process();
 			}
@@ -510,26 +478,35 @@ int main(int argc, char *argv[])
 		{
 			reg(parsed.eargc-1,&parsed.eargv[1]);
 		}
-		else if(!strcmp(parsed.eargv[0],"n") || !strcmp(parsed.eargv[0],"next"))
+		else if(!strcmp(parsed.eargv[0],"p") || !strcmp(parsed.eargv[0],"prev"))
 		{
-			next(parsed.eargc-1,&parsed.eargv[1]);
-		}
-		else if(!strcmp(parsed.eargv[0],"st") || !strcmp(parsed.eargv[0],"step"))
-		{
-			if(isRunning || isRunning_step)
-			{
-				end_process();
-			}
-			step(arg);
+			prev(parsed.eargc-1,&parsed.eargv[1]);
 		}
 		else if(!strcmp(parsed.eargv[0],"attach"))
 		{
 			arg = attach_funct(parsed.eargc-1,&parsed.eargv[1]);
 			isAttach = 1;
 		}
+		else if(!strcmp(parsed.eargv[0],"reset"))
+		{
+			if(isRunning)
+			{
+				cursor = BASE_cursor;
+				printf("\n");
+			}
+			else
+			{
+				printf("Error: No stack frame found\n");
+			}
+		}
+		else if(!strcmp(parsed.eargv[0],"clear"))
+		{
+			system("clear");
+			interface_affic();
+		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{
-			if(isRunning || isRunning_step)
+			if(isRunning)
 			{
 				end_process();
 			}
