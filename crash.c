@@ -4,19 +4,6 @@
 #include <signal.h>
 #include <sys/types.h>
 
-<<<<<<< HEAD
-void salut(char const *argv[])
-{
-	int *t;
-	for(int i=0;i<10;i++)
-	{
-		//sleep(1);
-		printf("Salut je vais crash\n");
-	}
-
-	t[5] = 5;
-
-=======
 void test()
 {
 	__asm__ volatile
@@ -50,7 +37,6 @@ void test()
 void salut()
 {
 	test();
->>>>>>> interface
 }
 
 void bien_et_toi(char const *argv[])
