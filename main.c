@@ -29,8 +29,6 @@
 #include <time.h>
 #include <limits.h>
 
-<<<<<<< HEAD
-=======
 #define BUFF_SIZE 256
 
 typedef struct parsed_str
@@ -41,9 +39,7 @@ typedef struct parsed_str
 arg_struct;
  
 unw_addr_space_t as;
->>>>>>> interface
 struct UPT_info *ui;
-unw_addr_space_t as;
 unw_cursor_t cursor;
 unw_cursor_t BASE_cursor;
 pid_t child = 0;
@@ -64,45 +60,6 @@ int attach(pid_t child)
 	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
 
    	wait(NULL);
-<<<<<<< HEAD
-
-    ptrace(PTRACE_CONT, child, NULL,NULL);
-
-    return 0;
-}
-
-int detach(pid_t child)
-{
-	long status = ptrace(PTRACE_DETACH, child, 0, 0);
-	if(status==-1)
-	{
-		printf("Error on PTRACE_DETACH\n");
-		return 6;
-	}
-
-	return 0;
-}
-
-int init_backtrace(pid_t child)
-{
-	as = unw_create_addr_space(&_UPT_accessors,0);
-	
-	if (!as) {
-        printf("unw_create_addr_space failed\n");
-        return 10;
-    }
-
-    ui = _UPT_create(child);
-	if (!ui) 
-	{
-		kill(child,SIGINT);
-       	printf("_UPT_create failed\n");
-       	return 5;
-   	}
-
-	int init_state = unw_init_remote(&cursor,as,ui);
-=======
->>>>>>> interface
 
     ptrace(PTRACE_CONT, child, NULL,NULL);
 
@@ -165,50 +122,6 @@ int init_backtrace(pid_t child)
 	    }
     }
     return 0;
-<<<<<<< HEAD
-}
-
-void backtrace()
-{
-	int ret = 1;
-	while (ret > 0) {
-
-		unw_word_t offset, ip, sp;
-		char sym[1024];
-
-		sym[0] = '\0';
-
-		unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		printf("%lx et %lx\n",ip, sp);
-
-		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-		printf("(%s+0x%lx)\n", sym, offset);
-		ret = unw_step(&cursor);
-	}	
-}
-
-void backtrace_step(unw_cursor_t cursor)
-{
-		unw_word_t offset, ip, sp;
-		char sym[1024];
-
-		sym[0] = '\0';
-
-		unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		printf("%lx et %lx\n",ip, sp);
-
-		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
-		printf("(%s+0x%lx)\n", sym, offset);
-		//unw_step(&cursor);
-}
-
-void end_backtrace()
-{
-	unw_destroy_addr_space(as);
-	_UPT_destroy(ui);
-=======
 }
 
 void get_reg()
@@ -242,7 +155,6 @@ void get_reg()
 		unw_get_reg(&cursor, i, &ip);
 		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
 	}
->>>>>>> interface
 }
 
 void backtrace()
@@ -266,10 +178,6 @@ void backtrace()
 		printf("%lx: (%s+0x%lx)\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
 	}
-<<<<<<< HEAD
-	
-	pid_t child = 0;
-=======
 	cursor = BASE_cursor;	
 }
 
@@ -278,7 +186,6 @@ void end_backtrace()
 	unw_destroy_addr_space(as);
 	_UPT_destroy(ui);
 }
->>>>>>> interface
 
 int run(arg_struct arg)
 {
@@ -305,18 +212,6 @@ int run(arg_struct arg)
 		}
 
   		wait(NULL);
-<<<<<<< HEAD
-
-  		init_backtrace(child);
-
-  		backtrace();
-
-  		end_backtrace();
-
-	    siginfo_t result;
-    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("erreur = %d\n",result.si_signo);
-=======
   		printf("\n");
   		init_backtrace(child);
 
@@ -525,7 +420,6 @@ void interface_affic()
 	}
 	printf("\n\n");
 }
->>>>>>> interface
 
 int main(int argc, char *argv[])
 {
