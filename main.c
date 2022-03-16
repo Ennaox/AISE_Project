@@ -40,7 +40,7 @@ unw_addr_space_t as;
 struct UPT_info *ui;
 unw_cursor_t cursor;
 unw_cursor_t BASE_cursor;
-pid_t child;
+pid_t child = 0;
 
 char isAttach = 1;
 char isRunning = 0;
@@ -141,24 +141,24 @@ void get_reg()
 
     ptrace (PTRACE_GETREGS,0,NULL,&regs);
 
-    printf( "rax = %llx\n"
-    		"rcx = %llx\n"
-    		"rdx = %llx\n"
-    		"rsi = %llx\n"
-    		"rdi = %llx\n"
-    		"rbp = %llx\n"
-    		"rbx = %llx\n"
-    		"r8 = %llx\n"
-    		"r9 = %llx\n"
-    		"r10 = %llx\n"
-    		"r11 = %llx\n"
-    		"r12 = %llx\n"
-    		"r13 = %llx\n"
-    		"r14 = %llx\n"
-    		"r15 = %llx\n"
-    		,regs.rax,regs.rcx,regs.rdx,regs.rsi,regs.rdi
-    		,regs.rbp,regs.rbx,regs.r8,regs.r9,regs.r10
-    		,regs.r11,regs.r12,regs.r13,regs.r14,regs.r15);
+    printf( "rax = 0x%llx	%lld\n"
+    		"rcx = 0x%llx	%lld\n"
+    		"rdx = 0x%llx	%lld\n"
+    		"rsi = 0x%llx	%lld\n"
+    		"rdi = 0x%llx	%lld\n"
+    		"rbp = 0x%llx	%lld\n"
+    		"rbx = 0x%llx	%lld\n"
+    		"r8 = 0x%llx	%lld\n"
+    		"r9 = 0x%llx	%lld\n"
+    		"r10 = 0x%llx	%lld\n"
+    		"r11 = 0x%llx	%lld\n"
+    		"r12 = 0x%llx	%lld\n"
+    		"r13 = 0x%llx	%lld\n"
+    		"r14 = 0x%llx	%lld\n"
+    		"r15 = 0x%llx	%lld\n"
+    		,regs.rax,regs.rax,regs.rcx,regs.rcx,regs.rdx,regs.rdx,regs.rsi,regs.rsi,regs.rdi,regs.rdi
+    		,regs.rbp,regs.rbp,regs.rbx,regs.rbx,regs.r8,regs.r8,regs.r9,regs.r9,regs.r10,regs.r10
+    		,regs.r11,regs.r11,regs.r12,regs.r12,regs.r13,regs.r13,regs.r14,regs.r14,regs.r15,regs.r15);
 }
 
 void backtrace()
@@ -297,9 +297,7 @@ int backtrace_fct(int eargc,char ** eargv)
 
 int reg(int eargc,char ** eargv)
 {
-	printf("Calling register function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
+	get_reg();
 	printf("\n");
 }
 
