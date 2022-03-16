@@ -137,7 +137,37 @@ int init_backtrace(pid_t child)
 
 void get_reg()
 {
-	struct user_regs_struct regs;
+	char ** name = malloc(16*sizeof(char*));
+	for(int i = 0; i < 16; i++)
+	{
+		name[i] = malloc(3*sizeof(char));
+	}
+
+	name[0] = "rax";
+	name[1] = "rdx";
+	name[2] = "rcx";
+	name[3] = "rbx";
+	name[4] = "rsi";
+	name[5] = "rdi";
+	name[6] = "rbp";
+	name[7] = "rsp";
+	name[8] = "r8";
+	name[9] = "r9";
+	name[10] = "r10";
+	name[11] = "r11";
+	name[12] = "r12";
+	name[13] = "r13";
+	name[14] = "r14";
+	name[15] = "r15";
+
+	unw_word_t ip;
+	for(int i = 0; i < 16; i++)
+	{
+		unw_get_reg(&cursor, i, &ip);
+		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
+	}
+
+	/*struct user_regs_struct regs;
 
     ptrace (PTRACE_GETREGS,0,NULL,&regs);
 
@@ -159,6 +189,7 @@ void get_reg()
     		,regs.rax,regs.rax,regs.rcx,regs.rcx,regs.rdx,regs.rdx,regs.rsi,regs.rsi,regs.rdi,regs.rdi
     		,regs.rbp,regs.rbp,regs.rbx,regs.rbx,regs.r8,regs.r8,regs.r9,regs.r9,regs.r10,regs.r10
     		,regs.r11,regs.r11,regs.r12,regs.r12,regs.r13,regs.r13,regs.r14,regs.r14,regs.r15,regs.r15);
+*/
 }
 
 void backtrace()
@@ -182,6 +213,7 @@ void backtrace()
 		printf("%lx: (%s+0x%lx)\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
 	}	
+	get_reg();
 }
 
 void end_backtrace()
