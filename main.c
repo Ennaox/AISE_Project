@@ -190,7 +190,7 @@ void get_reg()
 	for(int i = 17; i < 33; i++)
 	{
 		unw_get_fpreg(&cursor, i, &reg);
-		printf("%s\t%lf\n",name[i],reg);
+		printf("%s\t%Lf\n",name[i],reg);
 	}
 }
 
@@ -247,7 +247,7 @@ int run(arg_struct arg)
 		printf("Starting program: %s\nProgram pid: %d\n\n", BUFF,child);
 
 		int status = 0;
-		if(status = attach(child))
+		if((status = attach(child)))
 		{
 			kill(child,SIGINT);
 			return status;
@@ -259,7 +259,7 @@ int run(arg_struct arg)
 
 	    siginfo_t result;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("Program receiv the signal %d: %s\nError raised at 0x%lx\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
+		printf("Program receiv the signal %d: %s\nError raised at 0x%p\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
 
     	printf("\n");
 	}
@@ -272,7 +272,7 @@ int run(arg_struct arg)
 }
 	
 
-int break_point(int eargc,char ** eargv)
+void break_point(int eargc,char ** eargv)
 {
 	printf("\n");
 	printf("Calling break function with %d argument: ",eargc);
@@ -282,7 +282,7 @@ int break_point(int eargc,char ** eargv)
 }
 
 //fonction qui vérifie si le programme fils fonctionne avant de lancé le backtrace
-int backtrace_fct(int eargc,char ** eargv)
+void backtrace_fct()
 {
 	if(isRunning)
 	{
@@ -293,10 +293,11 @@ int backtrace_fct(int eargc,char ** eargv)
 	{
 		printf("Error: can't backtrace: no program are running\n");
 	}
+
 }
 
 //fonction qui nous permet de récupérer les registres si le programme fonctionne
-int reg(int eargc,char ** eargv)
+void reg()
 {
 	if(isRunning)
 	{
@@ -312,7 +313,7 @@ int reg(int eargc,char ** eargv)
 
 //fonction qui nous permet de nous deplacé pas à pas dans la pile
 //si le programme fonctionne
-int prev(int eargc,char ** eargv)
+void prev()
 {
 	if(isRunning)
 	{
@@ -437,7 +438,7 @@ void info(char * prog_loc)
 	char BUFF[BUFF_SIZE];
 	realpath(prog_loc,BUFF);
 	printf("\n");
-	printf("PID: %lu\tPPID: %lu\tGID: %lu\n",getpid(),getppid(),getgid());
+	printf("PID: %u\tPPID: %u\tGID: %u\n",child,getpid(),getgid());
 	printf("Program location: %s\n",BUFF);
 	printf("\n");
 }
@@ -536,15 +537,15 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
 		{
-			backtrace_fct(parsed.eargc-1,&parsed.eargv[1]);
+			backtrace_fct();
 		}
 		else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
 		{
-			reg(parsed.eargc-1,&parsed.eargv[1]);
+			reg();
 		}
 		else if(!strcmp(parsed.eargv[0],"p") || !strcmp(parsed.eargv[0],"prev"))
 		{
-			prev(parsed.eargc-1,&parsed.eargv[1]);
+			prev();
 		}
 		else if(!strcmp(parsed.eargv[0],"attach"))
 		{
@@ -570,7 +571,18 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"info"))
 		{
-			info(arg.eargv[0]);
+			if(isRunning)
+			{
+				info(arg.eargv[0]);
+			}
+			else
+			{
+				printf("Error: no program has been launch\n\n");
+			}
+		}
+		else if(!strcmp(parsed.eargv[0],"make"))
+		{
+			printf("Ahah the debugger is still running! Use 'quit' then make\n\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{
