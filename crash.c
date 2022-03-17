@@ -58,23 +58,23 @@ void salut()
 	test();
 }
 
-void bien_et_toi()
+void bien_et_toi(char const *argv[])
 {
-	salut();
+	salut(argv);
 }
 
-void comment_va()
+void comment_va(char const *argv[])
 {
-	bien_et_toi();
+	bien_et_toi(argv);
 }
 
-void yo_mec()
+void yo_mec(char const *argv[])
 {
-	comment_va();
+	comment_va(argv);
 }
 
 int main(int argc, char const *argv[])
 {
-	yo_mec();
+	yo_mec(argv);
 	return 0;
 }
