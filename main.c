@@ -31,23 +31,30 @@
 
 #define BUFF_SIZE 256
 
+//structure nous permettant de stocker les arguments et le programme a debugger
 typedef struct parsed_str
 {
 	int eargc;
 	char ** eargv;
 } 
 arg_struct;
- 
+
+//variable global necessaire a l'utilisation de libunwind et ptrace 
 unw_addr_space_t as;
 struct UPT_info *ui;
 unw_cursor_t cursor;
 unw_cursor_t BASE_cursor;
+
+//valeur du pid du processus fils
 pid_t child = 0;
 
+
+//variable nous permettant de vérifier si le debugger est attaché au programme
 char isAttach = 1;
+//variable nous permettant de vérifier si le programme fonctionne
 char isRunning = 0;
 
-
+//fonction qui permet au debugger de s'attacher au programme a vérifier
 int attach(pid_t child)
 {
     long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
@@ -66,6 +73,7 @@ int attach(pid_t child)
     return 0;
 }
 
+//fonction qui permet de se détacher du programme une fois que l'on a terminé
 int detach(pid_t child)
 {
 	long status = ptrace(PTRACE_DETACH, child, 0, 0);
@@ -78,6 +86,8 @@ int detach(pid_t child)
 	return 0;
 }
 
+//fonction qui initialise tous les pointeurs et variables utilise par libunwind
+//pour faire un backtrace
 int init_backtrace(pid_t child)
 {
 	as = unw_create_addr_space(&_UPT_accessors,0);
@@ -124,6 +134,8 @@ int init_backtrace(pid_t child)
     return 0;
 }
 
+//fonction nous permettant de récupérer la valeur de tout les registres indiqué
+//dans la fonction
 void get_reg()
 {
 	char ** name = malloc(16*sizeof(char*));
@@ -157,6 +169,8 @@ void get_reg()
 	}
 }
 
+//fonction qui lance le backtrace (regarder dans la pile les fonctions qui s'y trouvent)
+//cette fonction récupère toutes les fonctions de la pile
 void backtrace()
 {
 	int ret = 1;
@@ -181,12 +195,15 @@ void backtrace()
 	cursor = BASE_cursor;	
 }
 
+//fonction qui permet de libérer les pointeurs utilisé par libunwind
 void end_backtrace()
 {
 	unw_destroy_addr_space(as);
 	_UPT_destroy(ui);
 }
 
+//fonction qui nous permet de lancé le programme a débugger dans un processus fils,
+//qui s'attache a ce dernier et récupère le signal retourner
 int run(arg_struct arg)
 {
 	printf("\n");
@@ -239,6 +256,7 @@ int break_point(int eargc,char ** eargv)
 	printf("\n\n");
 }
 
+//fonction qui vérifie si le programme fils fonctionne avant de lancé le backtrace
 int backtrace_fct(int eargc,char ** eargv)
 {
 	if(isRunning)
@@ -252,6 +270,7 @@ int backtrace_fct(int eargc,char ** eargv)
 	}
 }
 
+//fonction qui nous permet de récupérer les registres si le programme fonctionne
 int reg(int eargc,char ** eargv)
 {
 	if(isRunning)
@@ -266,6 +285,8 @@ int reg(int eargc,char ** eargv)
 	printf("\n");
 }
 
+//fonction qui nous permet de nous deplacé pas à pas dans la pile
+//si le programme fonctionne
 int prev(int eargc,char ** eargv)
 {
 	if(isRunning)
@@ -315,6 +336,7 @@ arg_struct attach_funct(int eargc, char ** eargv)
 	return arg;
 }
 
+//fonction qui nous permet de parser les informations donnné au debugger
 arg_struct parse_str(char *buff)
 {
 	arg_struct parsed;
@@ -359,7 +381,7 @@ arg_struct parse_str(char *buff)
 	return parsed;
 }
 
-
+//fonction qui permet de libérer la memoire aloué par le parser
 void deallocate_parsed(arg_struct parsed)
 {
 	for(int i = 0; i<parsed.eargc+1;i++)
@@ -369,6 +391,8 @@ void deallocate_parsed(arg_struct parsed)
 	free(parsed.eargv);
 }
 
+//fonction qui détache notre debugger et qui termine le fils si ce dernier
+//ne s'est pas terminé
 void end_process()
 {
 	int status = 0;
@@ -382,6 +406,7 @@ void end_process()
 	}
 }
 
+//fonction qui gère l'affichage de notre interface (menu d'aide affiché automatiquement)
 void interface_affic()
 {
 	int nb_caract = 12;
