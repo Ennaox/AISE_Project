@@ -7,6 +7,7 @@
 	'p' or 'prev' to unwind stack frame 
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
+	'info' to show basic info of the program
 	'attach to attach the debugger to the binary we need to debug'
 	'reset' to reset the cursor to the top of the stack
 	'clear' to cleat the terminal
@@ -138,10 +139,10 @@ int init_backtrace(pid_t child)
 //dans la fonction
 void get_reg()
 {
-	char ** name = malloc(16*sizeof(char*));
-	for(int i = 0; i < 16; i++)
+	char ** name = malloc(33*sizeof(char*));
+	for(int i = 0; i < 33; i++)
 	{
-		name[i] = malloc(3*sizeof(char));
+		name[i] = malloc(5*sizeof(char));
 	}
 
 	name[0] = "rax";
@@ -160,12 +161,36 @@ void get_reg()
 	name[13] = "r13";
 	name[14] = "r14";
 	name[15] = "r15";
+	name[16] = "rip";
+	name[17] = "xmm0";
+	name[18] = "xmm1";
+	name[19] = "xmm2";
+	name[20] = "xmm3";
+	name[21] = "xmm4";
+	name[22] = "xmm5";
+	name[23] = "xmm6";
+	name[24] = "xmm7";
+	name[25] = "xmm8";
+	name[26] = "xmm9";
+	name[27] = "xmm10";
+	name[28] = "xmm11";
+	name[29] = "xmm12";
+	name[30] = "xmm13";
+	name[31] = "xmm14";
+	name[32] = "xmm15";
 
 	unw_word_t ip;
-	for(int i = 0; i < 16; i++)
+	for(int i = 0; i < 17; i++)
 	{
 		unw_get_reg(&cursor, i, &ip);
 		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
+	}
+	unw_fpreg_t reg;
+	printf("\n");
+	for(int i = 17; i < 33; i++)
+	{
+		unw_get_fpreg(&cursor, i, &reg);
+		printf("%s\t%lf\n",name[i],reg);
 	}
 }
 
@@ -181,15 +206,15 @@ void backtrace()
 
 		sym[0] = '\0';
 
-		// unw_get_reg(&cursor, UNW_REG_IP, &ip);
-		// unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		// printf("%lx et %lx\n",ip, sp);
+		unw_get_reg(&cursor, UNW_REG_IP, &ip);
+		unw_get_reg(&cursor, UNW_REG_SP, &sp);
+		printf("ip: %lx\tsp: %lx\n",ip, sp);
 
 		unw_proc_info_t proc_info;
 		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
 		unw_get_proc_info(&cursor, &proc_info);
 
-		printf("%lx: (%s+0x%lx)\n",proc_info.start_ip ,sym, offset);
+		printf("%lx: <%s+0x%lx>\n\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
 	}
 	cursor = BASE_cursor;	
@@ -406,7 +431,20 @@ void end_process()
 	}
 }
 
+
+void info(char * prog_loc)
+{
+	char BUFF[BUFF_SIZE];
+	realpath(prog_loc,BUFF);
+	printf("\n");
+	printf("PID: %lu\tPPID: %lu\tGID: %lu\n",getpid(),getppid(),getgid());
+	printf("Program location: %s\n",BUFF);
+	printf("\n");
+}
+
+
 //fonction qui gère l'affichage de notre interface (menu d'aide affiché automatiquement)
+
 void interface_affic()
 {
 	int nb_caract = 12;
@@ -433,6 +471,7 @@ void interface_affic()
 		"\t-'p' or 'prev' to unwind stack frame\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
+		"\t-'info' to show basic info of the program\n"
 		"\t-'attach' to attach the debugger to the binary we need to debug\n"
 		"\t-'reset' to reset the cursor to the top of the stack frame\n"
 		"\t-'clear' to cleat the terminal\n"
@@ -528,6 +567,10 @@ int main(int argc, char *argv[])
 		{
 			system("clear");
 			interface_affic();
+		}
+		else if(!strcmp(parsed.eargv[0],"info"))
+		{
+			info(arg.eargv[0]);
 		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{

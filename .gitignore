@@ -1,5 +1,6 @@
 main
 crash
+tmp.txt
 
 # Prerequisites
 *.d
