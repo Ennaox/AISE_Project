@@ -5,6 +5,7 @@
 	'r' or 'run' to launch the sub process and start the tracing
 	'b' or 'breakpoint' to set a breakpoint
 	'p' or 'prev' to unwind stack frame 
+	's' or 'step' to step forward the execution of the program
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
 	'info' to show basic info of the program
@@ -30,6 +31,7 @@
 #include <string.h>
 #include <time.h>
 #include <limits.h>
+#include <errno.h>
 
 #define BUFF_SIZE 256
 
@@ -59,19 +61,12 @@ char isRunning = 0;
 //fonction qui permet au debugger de s'attacher au programme a vérifier
 int attach(pid_t child)
 {
-    long verif = ptrace(PTRACE_SEIZE, child, NULL, NULL);
-    if(verif==-1)
-	{
-		printf("Error on PTRACE_SEIZE\n");
-		return 9;
-	}	
-
-	ptrace(PTRACE_INTERRUPT, child, NULL,NULL);
-
-   	wait(NULL);
+	int waitStat = 0;
+    int waitRes = waitpid(child, &waitStat, WUNTRACED);
 
     ptrace(PTRACE_CONT, child, NULL,NULL);
-
+    waitpid(child, &waitStat, WUNTRACED);
+    ptrace(PTRACE_CONT, child, NULL,NULL);
     return 0;
 }
 
@@ -257,21 +252,35 @@ int run(arg_struct arg)
 			return status;
 		}
 
-  		wait(NULL);
-  		printf("\n");
+  		int waitStat = 0;
+    	int waitRes = waitpid(child, &waitStat, WUNTRACED);
+
   		init_backtrace(child);
 
-	    siginfo_t result;
-    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
-		printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
-    	#else
-    	printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,/*sigabbrev_np(result.si_signo)*/"",strsignal(result.si_signo),result.si_addr);
-    	#endif
+  		if(WIFEXITED(waitStat))
+  		{
+  			printf("The program: %d exited normally\n",child);
+  		}
+  		else
+  		{
+  			if(WIFSIGNALED(waitStat))
+  			{
+  				siginfo_t result;
+		    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+				#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
+				printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
+		    	#else
+		    	printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,/*sigabbrev_np(result.si_signo)*/"",strsignal(result.si_signo),result.si_addr);
+		    	#endif
+  			}
+  		}
     	printf("\n");
 	}
 	else
 	{
+		ptrace(PTRACE_TRACEME,0,0,0);
+		raise(SIGSTOP);
+		kill(getppid(),SIGCONT);
 		execvp(arg.eargv[0],arg.eargv+sizeof(char *));
 		return 0;
 	}
@@ -334,6 +343,27 @@ void prev()
 		printf("Error: Not running\n");
 	}
     printf("\n");
+}
+
+void step()
+{
+	int status = ptrace(PTRACE_SINGLESTEP,child,0,0);
+	int wstatus; 
+	waitpid(child,&wstatus,WUNTRACED);
+	if(status && WIFEXITED(wstatus)) 
+	{
+		printf("The program %d exited normally\n",child);
+	}
+	else if(status && WIFSIGNALED(wstatus))
+	{
+		siginfo_t result;
+		ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
+			printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
+		#else
+		    printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
+		#endif
+	}
 }
 
 arg_struct attach_funct(int eargc, char ** eargv)
@@ -476,6 +506,7 @@ void interface_affic()
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
 		"\t-'b' or 'breakpoint' to set a breakpoint\n"
 		"\t-'p' or 'prev' to unwind stack frame\n"
+		"\t-'s' or 'step' to step forward the execution of the program\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
 		"\t-'info' to show basic info of the program\n"
@@ -581,6 +612,17 @@ int main(int argc, char *argv[])
 			if(isRunning)
 			{
 				info(arg.eargv[0]);
+			}
+			else
+			{
+				printf("Error: no program has been launch\n\n");
+			}
+		}
+		else if(!strcmp(parsed.eargv[0],"s") || !strcmp(parsed.eargv[0],"step"))
+		{
+			if(isRunning)
+			{
+				step();
 			}
 			else
 			{
