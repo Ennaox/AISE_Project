@@ -13,6 +13,7 @@
 	'clear' to cleat the terminal
 	'quit' to quit the program
 */
+#define _GNU_SOURCE
 
 #include <sys/ioctl.h>
 #include <stdio.h>
@@ -189,7 +190,10 @@ void get_reg()
 	printf("\n");
 	for(int i = 17; i < 33; i++)
 	{
-		unw_get_fpreg(&cursor, i, &reg);
+		if(unw_get_fpreg(&cursor, i, &reg)<0)
+		{
+			printf("Error when reading %s\n",name[i]);
+		}
 		printf("%s\t%Lf\n",name[i],reg);
 	}
 }
@@ -259,7 +263,7 @@ int run(arg_struct arg)
 
 	    siginfo_t result;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
-		printf("Program receiv the signal %d: %s\nError raised at 0x%p\n",result.si_signo,strsignal(result.si_signo),result.si_addr);
+		printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
 
     	printf("\n");
 	}
@@ -287,7 +291,6 @@ void backtrace_fct()
 	if(isRunning)
 	{
 		backtrace(cursor);
-		printf("\n");
 	}
 	else
 	{
@@ -513,6 +516,7 @@ int main(int argc, char *argv[])
 	
 	while(1)
 	{
+		printf("\033[0;36mcdbg>\033[0m");
 		fgets(buff,BUFF_SIZE,stdin);
 		arg_struct parsed = parse_str(buff);
 
