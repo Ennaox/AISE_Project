@@ -263,8 +263,11 @@ int run(arg_struct arg)
 
 	    siginfo_t result;
     	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+		#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
 		printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
-
+    	#else
+    	printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,/*sigabbrev_np(result.si_signo)*/"",strsignal(result.si_signo),result.si_addr);
+    	#endif
     	printf("\n");
 	}
 	else
