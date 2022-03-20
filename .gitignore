@@ -1,6 +1,7 @@
 main
 crash
 tmp.txt
+dbg
 
 # Prerequisites
 *.d

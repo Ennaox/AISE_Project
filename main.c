@@ -203,7 +203,8 @@ void end_backtrace()
 	_UPT_destroy(ui);
 }
 
-void breackpoint(unsigned addr)
+//non fonctionnelle
+void breakpoint(unsigned addr)
 {
 	unsigned data = ptrace(PTRACE_PEEKTEXT, child, addr, 0);
 	if(data == -1)
@@ -212,6 +213,7 @@ void breackpoint(unsigned addr)
 	}
 }
 
+//nob fonctionnelle
 void read_elf(char *name)
 {
 	void* buf = NULL;
@@ -350,7 +352,7 @@ void reg()
 	printf("\n");
 }
 
-//fonction qui nous permet de récupérer les registres flotant si le programme fonctionne
+//fonction qui nous permet de récupérer les registres flotant si le programme est lancé
 void freg()
 {
 	if(isRunning)
@@ -368,13 +370,14 @@ void freg()
 
 void reg_full()
 {
-	printf("floating point register not implemented yet\n");
+	
 	reg();
+	printf("\n\033[1;35mfloating point register not implemented yet\033[1m\n");
 	freg();
 }
 
 //fonction qui nous permet de nous deplacé pas à pas dans la pile
-//si le programme fonctionne
+//si le programme est lancé
 void prev()
 {
 	if(isRunning)
@@ -472,7 +475,7 @@ void end_process()
 	}
 }
 
-
+//fonction qui affiche les info sur le programme qui est lancé
 void info(char * prog_loc)
 {
 	char BUFF[BUFF_SIZE];
@@ -485,7 +488,6 @@ void info(char * prog_loc)
 
 
 //fonction qui gère l'affichage de notre interface (menu d'aide affiché automatiquement)
-
 void interface_affic()
 {
 	int nb_caract = 12;
@@ -588,7 +590,7 @@ int main(int argc, char *argv[])
 			printf("Error: function not implemented yet\n");
 			if(parsed.eargc >= 2)
 			{
-				breackpoint(atol(parsed.eargv[1]));
+				breakpoint(atol(parsed.eargv[1]));
 			}
 			
 		}

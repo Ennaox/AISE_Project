@@ -1,5 +1,6 @@
 #include "pdwarf.h"
 
+//Permet d'afficher le contenu de la liste des paramètres d'une fonction
 void print_param(PARAMETERS *param)
 {
 	if(param != NULL)
@@ -20,6 +21,7 @@ void print_param(PARAMETERS *param)
 	}
 }
 
+//Permet d'afficher le contenu de la liste des variable d'une fonction
 void print_vars(VARIABLES *vars)
 {
 	if(vars != NULL)
@@ -40,6 +42,7 @@ void print_vars(VARIABLES *vars)
 	}
 }
 
+//Permet d'afficher le contenu de la liste des des fonctions
 void print_subprogram(SUBPROGRAM *sub)
 {
 	if(sub != NULL)
@@ -74,7 +77,9 @@ void print_subprogram(SUBPROGRAM *sub)
 
 }
 
-
+//Permet de parser une string et de renvoyer une tableau avec chaque case qui 
+//contient un mot de la string. utilisé pour parser les commandes entrées ainsi 
+//que le dwarf
 arg_struct parse_str(char *buff)
 {
 	arg_struct parsed;
@@ -136,6 +141,7 @@ arg_struct parse_str(char *buff)
 	return parsed;
 }
 
+//Permet d'intialisé la struc PARAMETERS
 PARAMETERS *init_params(PARAMETERS *params)
 {
 	memset(params->name,0,256*sizeof(char));
@@ -146,6 +152,7 @@ PARAMETERS *init_params(PARAMETERS *params)
 	return params;
 }
 
+//Permet d'intialisé la struc VARIABLES
 VARIABLES *init_vars(VARIABLES *vars)
 {
 	memset(vars->name,0,256*sizeof(char));
@@ -156,6 +163,7 @@ VARIABLES *init_vars(VARIABLES *vars)
 	return vars;
 }
 
+//Permet d'intialisé la struc SUBPROGRAM
 SUBPROGRAM *init_fcts(SUBPROGRAM *fcts)
 {
 	memset(fcts->name,0,256*sizeof(char));
@@ -171,6 +179,7 @@ SUBPROGRAM *init_fcts(SUBPROGRAM *fcts)
 	return fcts;
 }
 
+//Permet d'ajouter une fonction a la liste des fonctions
 void add_fcts(SUBPROGRAM * curr)
 {
 	if(fcts_l == NULL)
@@ -185,6 +194,7 @@ void add_fcts(SUBPROGRAM * curr)
 	}
 }
 
+//Permet d'ajouter un paramètre a la liste des paramètres
 void add_params(PARAMETERS * curr)
 {
 	PARAMETERS *tmp = last_fct->params;
@@ -200,6 +210,7 @@ void add_params(PARAMETERS * curr)
 	tmp->next = curr;
 }
 
+//Permet d'ajouter une variable a la liste des variables
 void add_vars(VARIABLES * curr)
 {
 	VARIABLES *tmp = last_fct->vars;
@@ -213,6 +224,8 @@ void add_vars(VARIABLES * curr)
 	tmp->next = curr;
 }
 
+//Fontion principale qui permet de parser le dwarf de notre bianaire et de
+//remplir les structs présenter précedemment
 int parse_dwarf(char * prog_loc)
 {
 	char cmd[256];
@@ -229,7 +242,6 @@ int parse_dwarf(char * prog_loc)
 	char buff[1024];
 	memset(buff,0,1024*sizeof(char));
 	
-	memset(last_type,0,256*sizeof(char));
 	enum TYPE last_type;
 	while(fgets(buff,1024*sizeof(char),dwarf)!= NULL)
 	{
