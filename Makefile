@@ -1,6 +1,8 @@
 all: dbg crash 
 	./dbg ./crash
 
+compile: dbg
+
 dbg: main.o pdwarf.h pdwarf.o main.h
 	gcc pdwarf.o main.o -o dbg -g -Wall -Wextra -lunwind-ptrace -lunwind-generic -lunwind-x86_64 -lunwind
 

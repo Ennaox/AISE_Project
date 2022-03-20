@@ -16,6 +16,10 @@
 #include <time.h>
 #include <limits.h>
 #include <errno.h>
+#include <elf.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "pdwarf.h"
 
 #define BUFF_SIZE 256

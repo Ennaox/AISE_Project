@@ -5,10 +5,14 @@
 	'r' or 'run' to launch the sub process and start the tracing
 	'p' or 'prev' to unwind stack frame 
 	's' or 'step' to step forward the execution of the program
+	'b' to make a breakcpoint
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
+	'freg' or 'fregister' to show the floating point register of the program
+	'reg full to show the register and floating point register'
 	'info' to show basic info of the program
-	'info full' to show full info of the program\n"
+	'info full' to show full info of the program
+	'elf' to show basic elf info of the program
 	'attach to attach the debugger to the binary we need to debug'
 	'reset' to reset the cursor to the top of the stack
 	'clear' to clear the terminal
@@ -95,10 +99,10 @@ int detach(pid_t child)
 //dans la fonction
 void get_reg()
 {
-	char ** name = malloc(33*sizeof(char*));
-	for(int i = 0; i < 33; i++)
+	char ** name = malloc(17*sizeof(char*));
+	for(int i = 0; i < 17; i++)
 	{
-		name[i] = malloc(5*sizeof(char));
+		name[i] = malloc(3*sizeof(char));
 	}
 
 	name[0] = "rax";
@@ -118,22 +122,7 @@ void get_reg()
 	name[14] = "r14";
 	name[15] = "r15";
 	name[16] = "rip";
-	name[17] = "xmm0";
-	name[18] = "xmm1";
-	name[19] = "xmm2";
-	name[20] = "xmm3";
-	name[21] = "xmm4";
-	name[22] = "xmm5";
-	name[23] = "xmm6";
-	name[24] = "xmm7";
-	name[25] = "xmm8";
-	name[26] = "xmm9";
-	name[27] = "xmm10";
-	name[28] = "xmm11";
-	name[29] = "xmm12";
-	name[30] = "xmm13";
-	name[31] = "xmm14";
-	name[32] = "xmm15";
+	
 
 	unw_word_t ip;
 	for(int i = 0; i < 17; i++)
@@ -141,11 +130,37 @@ void get_reg()
 		unw_get_reg(&cursor, i, &ip);
 		printf("\033[0;32m%s\t\033[0;33m%lx\t%lu\033[0m\n",name[i],ip,ip);
 	}
+}
+
+void get_freg()
+{
+	char ** name = malloc(16*sizeof(char*));
+	for(int i = 0; i < 16; i++)
+	{
+		name[i] = malloc(5*sizeof(char));
+	}
+
+	name[0] = "xmm0";
+	name[1] = "xmm1";
+	name[2] = "xmm2";
+	name[3] = "xmm3";
+	name[4] = "xmm4";
+	name[5] = "xmm5";
+	name[6] = "xmm6";
+	name[7] = "xmm7";
+	name[8] = "xmm8";
+	name[9] = "xmm9";
+	name[10] = "xmm10";
+	name[11] = "xmm11";
+	name[12] = "xmm12";
+	name[13] = "xmm13";
+	name[14] = "xmm14";
+	name[15] = "xmm15";
 
 	unw_fpreg_t reg;
 	printf("\n");
 
-	for(int i = 17; i < 33; i++)
+	for(int i = 0; i < 16; i++)
 	{
 		if(unw_get_fpreg(&cursor, i, &reg)<0)
 		{
@@ -186,6 +201,61 @@ void end_backtrace()
 {
 	unw_destroy_addr_space(as);
 	_UPT_destroy(ui);
+}
+
+void breackpoint(unsigned addr)
+{
+	unsigned data = ptrace(PTRACE_PEEKTEXT, child, addr, 0);
+	if(data == -1)
+	{
+		printf("Error: the breackpoint failed\n");
+	}
+}
+
+void read_elf(char *name)
+{
+	void* buf = NULL;
+	int f;
+	struct stat stat;
+	char *tab;
+	int nb;
+
+	f = open(name, O_RDONLY, 660);
+
+	if(f < 0)
+	{
+		printf("Error: can't open file\n");
+	}
+
+	fstat(f, &stat);
+
+	buf = mmap(0, stat.st_size, PROT_READ , MAP_FILE | MAP_SHARED, f, 0);
+	if(buf == MAP_FAILED)
+	{
+		perror("mmap");
+		abort();
+	}
+
+	Elf64_Ehdr* hdr = (Elf64_Ehdr *) buf;
+	Elf64_Sym* sym;
+
+	printf("Check four first bytes: %x '%c' '%c' '%c'\n", *(char*)buf,*((char*)buf+1), *((char*)buf+2), *((char*)buf+3));
+
+	Elf64_Shdr* shdr = (Elf64_Shdr *)((char *)buf + hdr->e_shoff);
+
+	for (int i = 0; i < hdr->e_shnum; i++)
+	{
+		if (shdr[i].sh_type == SHT_SYMTAB) 
+		{
+			sym = (Elf64_Sym *)((char *)buf + shdr[i].sh_offset);
+			nb = shdr[i].sh_size / shdr[i].sh_entsize;
+			tab = (char*)((char*)buf + shdr[shdr[i].sh_link].sh_offset);
+		}
+	}
+
+	for (int i = 0; i < nb; ++i) {
+		printf("%d: %s\n", i, tab + sym[i].st_name);
+	}
 }
 
 //fonction qui nous permet de lancé le programme a débugger dans un processus fils,
@@ -278,6 +348,29 @@ void reg()
 		printf("\033[1;35mNo stack frame to read register from, try to 'run' first\033[1m\n");
 	}
 	printf("\n");
+}
+
+//fonction qui nous permet de récupérer les registres flotant si le programme fonctionne
+void freg()
+{
+	if(isRunning)
+	{
+		printf("\n");
+		printf("function not implemented yet\n");
+		get_freg();
+	}
+	else
+	{
+		printf("\033[1;35mNo stack frame to read register from, try to 'run' first\033[1m\n");
+	}
+	printf("\n");
+}
+
+void reg_full()
+{
+	printf("floating point register not implemented yet\n");
+	reg();
+	freg();
 }
 
 //fonction qui nous permet de nous deplacé pas à pas dans la pile
@@ -417,10 +510,14 @@ void interface_affic()
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
 		"\t-'p' or 'prev' to unwind stack frame\n"
 		"\t-'s' or 'step' to step forward the execution of the program\n"
+		"\t-'b' to make a breakcpoint\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
+		"\t-'freg' or 'fregister' to show the floating point register of the program\n"
+		"\t-'reg full to show the register and floating point register\n"
 		"\t-'info' to show basic info of the program\n"
 		"\t-'info full' to show all info of the program\n"
+		"\t-'elf' to show basic elf info of the program\n"
 		"\t-'attach' to attach the debugger to the binary we need to debug\n"
 		"\t-'reset' to reset the cursor to the top of the stack frame\n"
 		"\t-'clear' to clear the terminal\n"
@@ -486,13 +583,33 @@ int main(int argc, char *argv[])
 				printf("\033[1;35mWARNING: Can't run: The debuger isn't attach to a binary\033[1m\n\n");
 			}
 		}
+		else if (!strcmp(parsed.eargv[0], "b"))
+		{
+			printf("Error: function not implemented yet\n");
+			if(parsed.eargc >= 2)
+			{
+				breackpoint(atol(parsed.eargv[1]));
+			}
+			
+		}
 		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
 		{
 			backtrace_fct();
 		}
 		else if(!strcmp(parsed.eargv[0],"reg") || !strcmp(parsed.eargv[0],"register"))
 		{
-			reg();
+			if(parsed.eargc >= 2 && !strcmp(parsed.eargv[1],"full"))
+			{
+				reg_full();
+			}
+			else
+			{
+				reg();
+			}
+		}
+		else if(!strcmp(parsed.eargv[0],"freg") || !strcmp(parsed.eargv[0],"fregister"))
+		{
+			freg();
 		}
 		else if(!strcmp(parsed.eargv[0],"p") || !strcmp(parsed.eargv[0],"prev"))
 		{
@@ -502,6 +619,12 @@ int main(int argc, char *argv[])
 		{
 			arg = attach_funct(parsed.eargc-1,&parsed.eargv[1]);
 			isAttach = 1;
+		}
+		else if (!strcmp(parsed.eargv[0],"elf"))
+		{
+			printf("Warning: function not fully implemented yet\n");
+			read_elf(arg.eargv[0]);
+			printf("\nWarning: function not fully implemented yet\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"reset"))
 		{
