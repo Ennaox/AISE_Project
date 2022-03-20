@@ -3,7 +3,6 @@
 
 	List of command:
 	'r' or 'run' to launch the sub process and start the tracing
-	'b' or 'breakpoint' to set a breakpoint
 	'p' or 'prev' to unwind stack frame 
 	's' or 'step' to step forward the execution of the program
 	'bt' or 'backtrace' to show the bactrace of the program
@@ -11,7 +10,7 @@
 	'info' to show basic info of the program
 	'attach to attach the debugger to the binary we need to debug'
 	'reset' to reset the cursor to the top of the stack
-	'clear' to cleat the terminal
+	'clear' to clear the terminal
 	'quit' to quit the program
 */
 #define _GNU_SOURCE
@@ -182,13 +181,15 @@ void get_reg()
 		unw_get_reg(&cursor, i, &ip);
 		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
 	}
+
 	unw_fpreg_t reg;
 	printf("\n");
+
 	for(int i = 17; i < 33; i++)
 	{
 		if(unw_get_fpreg(&cursor, i, &reg)<0)
 		{
-			printf("Error when reading %s\n",name[i]);
+			printf("Error when reading on %s\n",name[i]);
 		}
 		printf("%s\t%Lf\n",name[i],reg);
 	}
@@ -289,16 +290,6 @@ int run(arg_struct arg)
 	}
 	return 0;
 }
-	
-
-void break_point(int eargc,char ** eargv)
-{
-	printf("\n");
-	printf("Calling break function with %d argument: ",eargc);
-	for(int i=0;i<eargc;i++)
-		printf("%s ",eargv[i]);
-	printf("\n\n");
-}
 
 //fonction qui vérifie si le programme fils fonctionne avant de lancé le backtrace
 void backtrace_fct()
@@ -348,6 +339,7 @@ void prev()
     printf("\n");
 }
 
+//cette fonction n'est pas encore implémenté
 void step()
 {
 	int status = ptrace(PTRACE_SINGLESTEP,child,0,0);
@@ -368,6 +360,7 @@ void step()
 		#endif
 	}
 }
+
 
 arg_struct attach_funct(int eargc, char ** eargv)
 {
@@ -507,7 +500,6 @@ void interface_affic()
 
 		"List of command:\n"
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
-		"\t-'b' or 'breakpoint' to set a breakpoint\n"
 		"\t-'p' or 'prev' to unwind stack frame\n"
 		"\t-'s' or 'step' to step forward the execution of the program\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
@@ -515,7 +507,7 @@ void interface_affic()
 		"\t-'info' to show basic info of the program\n"
 		"\t-'attach' to attach the debugger to the binary we need to debug\n"
 		"\t-'reset' to reset the cursor to the top of the stack frame\n"
-		"\t-'clear' to cleat the terminal\n"
+		"\t-'clear' to clear the terminal\n"
 		"\t-'quit' to quit the program\n\n"
 		
 		);
@@ -572,10 +564,6 @@ int main(int argc, char *argv[])
 				printf("Can't run: The debuger isn't attach to a binary\n");
 			}
 		}
-		else if(!strcmp(parsed.eargv[0],"b") || !strcmp(parsed.eargv[0],"breakpoint"))
-		{
-			break_point(parsed.eargc-1,&parsed.eargv[1]);
-		}
 		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
 		{
 			backtrace_fct();
@@ -625,6 +613,7 @@ int main(int argc, char *argv[])
 		{
 			if(isRunning)
 			{
+				printf("pas encore implémenté\n");
 				step();
 			}
 			else
