@@ -46,7 +46,6 @@ void reg();
 void prev();
 void step();
 arg_struct attach_funct(int eargc, char ** eargv);
-arg_struct parse_str(char *buff);
 void deallocate_parsed(arg_struct parsed);
 void end_process();
 void info(char * prog_loc);

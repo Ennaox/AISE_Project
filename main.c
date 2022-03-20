@@ -8,6 +8,7 @@
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
 	'info' to show basic info of the program
+	'info full' to show full info of the program\n"
 	'attach to attach the debugger to the binary we need to debug'
 	'reset' to reset the cursor to the top of the stack
 	'clear' to clear the terminal
@@ -204,7 +205,7 @@ int run(arg_struct arg)
 	{
 		char BUFF[BUFF_SIZE];
 		realpath(arg.eargv[0],BUFF);
-		printf("Starting program: %s\nProgram pid: %d\n\n", BUFF,child);
+		printf("\033[0;32mStarting program: \033[0;33m%s\n\033[0;32mProgram pid: \033[0;33m%d\033[0m\n\n", BUFF,child);
 
 		int status = 0;
 		if((status = attach(child)))
@@ -219,23 +220,23 @@ int run(arg_struct arg)
 
   		if(WIFEXITED(waitStat))
   		{
-  			printf("The program: %d exited normally\n",child);
+  			printf("\033[0;35mThe program: \033[0;33m%d \033[0;35mexited normally\033[0m\n",child);
   			child = 0;
   			isRunning = 0;
   		}
   		else
   		{	
-  			init_backtrace(child);
-  			if(WIFSIGNALED(waitStat))
-  			{
+  			init_backtrace(child);;
+  			
   				siginfo_t result;
 		    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
+				printf("\n");
 				#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
-				printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
+				printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
 		    	#else
-		    	printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,/*sigabbrev_np(result.si_signo)*/"",strsignal(result.si_signo),result.si_addr);
+		    	printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
 		    	#endif
-  			}
+
   		}
     	printf("\n");
 	}
@@ -353,51 +354,6 @@ arg_struct attach_funct(int eargc, char ** eargv)
 	return arg;
 }
 
-//fonction qui nous permet de parser les informations donnné au debugger
-arg_struct parse_str(char *buff)
-{
-	arg_struct parsed;
-	parsed.eargc = 1;
-	for(int i = 0; i<BUFF_SIZE;i++)
-	{
-		if(buff[i] == ' ')
-		{
-			parsed.eargc ++;
-		}
-		if(buff[i] == '\0')
-			break;
-		if(buff[i] == '\n')
-		{
-			buff[i] = '\0';
-			break;
-		}
-	}
-	parsed.eargv = malloc((parsed.eargc+1)*sizeof(char*));
-	for(int i = 0; i<parsed.eargc;i++)
-	{
-		parsed.eargv[i] = malloc(BUFF_SIZE*sizeof(char));
-		memset(parsed.eargv[i],0,BUFF_SIZE*sizeof(char));
-	}
-	parsed.eargv[parsed.eargc] = NULL;
-	int len = strlen(buff);
-	int j = 0, k=0;
-	for(int i = 0;i<len;i++)
-	{
-		if(buff[i] == ' ')
-		{
-			j++;
-			parsed.eargv[j][k] = '\0';
-			k = 0;
-		}
-		else
-		{
-			parsed.eargv[j][k] = buff[i];
-			k++;
-		}
-	}
-	return parsed;
-}
-
 //fonction qui permet de libérer la memoire aloué par le parser
 void deallocate_parsed(arg_struct parsed)
 {
@@ -429,9 +385,9 @@ void info(char * prog_loc)
 	char BUFF[BUFF_SIZE];
 	realpath(prog_loc,BUFF);
 	printf("\n");
-	printf("PID: %u\tPPID: %u\tGID: %u\n",child,getpid(),getgid());
-	printf("Program location: %s\n",BUFF);
-	printf("\n");
+	printf("\033[0;32mPID: \033[0;33m%u\t\033[0;32mPPID: \033[0;33m%u\t\033[0;32mGID: \033[0;33m%u\n",child,getpid(),getgid());
+	printf("\033[0;32mProgram location: \033[0;33m%s\033[0m\n",BUFF);
+
 }
 
 
@@ -446,7 +402,7 @@ void interface_affic()
 	int nb_ast = (w.ws_col - nb_caract)/2;
 	for(int i = 0; i<nb_ast;i++)
 	{
-		printf("#");
+		printf("\033[0;36m#");
 	}
 	printf(" C debuger ");
 	for(int i = 0; i<=nb_ast;i++)
@@ -464,6 +420,7 @@ void interface_affic()
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
 		"\t-'info' to show basic info of the program\n"
+		"\t-'info full' to show all info of the program\n"
 		"\t-'attach' to attach the debugger to the binary we need to debug\n"
 		"\t-'reset' to reset the cursor to the top of the stack frame\n"
 		"\t-'clear' to clear the terminal\n"
@@ -474,19 +431,25 @@ void interface_affic()
 	{
 		printf("#");
 	}
-	printf("\n\n");
+	printf("\n\n\033[0m");
 }
 
 int main(int argc, char *argv[])
 {
 	interface_affic();
 	
+	fcts_l = NULL;
+	last_fct = NULL;
+	last_vars = NULL;
+	last_params = NULL;
+
 	arg_struct arg;
-	
+	arg_struct parsed;
+
 	if(argc < 2)
 	{
 		isAttach = 0;
-		printf("WARNING: The debbuger isn't attach to any binary\n\tPlease attach it to a binary with the command 'attach [MyExecutable] [List of argument]'\n");
+		printf("\033[1;35mWARNING: The debbuger isn't attach to any binary\n\tPlease attach it to a binary with the command 'attach [MyExecutable] [List of argument]'\033[1m\n\n");
 	}
 	else
 	{
@@ -506,7 +469,7 @@ int main(int argc, char *argv[])
 	{
 		printf("\033[0;36mcdbg>\033[0m");
 		fgets(buff,BUFF_SIZE,stdin);
-		arg_struct parsed = parse_str(buff);
+		parsed = parse_str(buff);
 
 		if(!strcmp(parsed.eargv[0],"r") || !strcmp(parsed.eargv[0],"run"))
 		{
@@ -520,7 +483,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				printf("Can't run: The debuger isn't attach to a binary\n");
+				printf("\033[1;35mWARNING: Can't run: The debuger isn't attach to a binary\033[1m\n\n");
 			}
 		}
 		else if(!strcmp(parsed.eargv[0],"bt") || !strcmp(parsed.eargv[0],"backtrace"))
@@ -549,7 +512,7 @@ int main(int argc, char *argv[])
 			}
 			else
 			{
-				printf("Error: No stack frame found\n");
+				printf("\033[1;35mError: No stack frame found, maybe the program hasn't been run\033[1m\n\n");
 			}
 		}
 		else if(!strcmp(parsed.eargv[0],"clear"))
@@ -559,46 +522,50 @@ int main(int argc, char *argv[])
 		}
 		else if(!strcmp(parsed.eargv[0],"info"))
 		{
-			if(isRunning)
+			if(isAttach)
 			{
-				SUBPROGRAM *sub = NULL;
 				info(arg.eargv[0]);
-				print_subprogram(sub);
+				if(parsed.eargc >= 2 && !strcmp(parsed.eargv[1],"full"))
+				{
+					parse_dwarf(arg.eargv[0]);
+					print_subprogram(fcts_l);
+				}
 			}
 			else
 			{
-				printf("Error: no program has been launch\n\n");
+				printf("\n\033[1;35mWARNING: Can't show info: The debuger isn't attach to a binary\033[1m\n");
 			}
+			printf("\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"s") || !strcmp(parsed.eargv[0],"step"))
 		{
 			if(isRunning)
 			{
-				printf("pas encore implémenté\n");
+				printf("\033[1;31mNot yet implemented\033[1m\n\n");
 				step();
 			}
 			else
 			{
-				printf("Error: no program has been launch\n\n");
+				printf("\033[1;35mError: no program has been launch\033[1m\n\n");
 			}
 		}
 		else if(!strcmp(parsed.eargv[0],"make"))
 		{
-			printf("Ahah the debugger is still running! Use 'quit' then make\n\n");
+			printf("\033[1;37mAhah the debugger is still running! Use 'quit' then make\033[1m\n\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"quit"))
 		{
 			if(isRunning)
 			{
 				end_process();
+				deallocate_parsed(arg);
+				deallocate_parsed(parsed);
 			}
-			deallocate_parsed(arg);
-			deallocate_parsed(parsed);
 			break;
 		}
 		else
 		{
-			printf("Error: '%s' is an unknown command\n",parsed.eargv[0]);
+			printf("\033[1;35mError: '%s' is an unknown command\033[1m\n\n",parsed.eargv[0]);
 		}
 		deallocate_parsed(parsed);
 		memset(buff,0,BUFF_SIZE*sizeof(char));
