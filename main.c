@@ -24,7 +24,7 @@ int init_backtrace(pid_t child)
 	as = unw_create_addr_space(&_UPT_accessors,0);
 	
 	if (!as) {
-        printf("unw_create_addr_space failed\n");
+        printf("\033[1;31munw_create_addr_space failed\033[1m\n");
         return 10;
     }
 
@@ -32,7 +32,7 @@ int init_backtrace(pid_t child)
 	if (!ui) 
 	{
 		kill(child,SIGINT);
-       	printf("_UPT_create failed\n");
+       	printf("\033[1;31m_UPT_create failed\033[1m\n");
        	return 5;
    	}
 
@@ -43,22 +43,22 @@ int init_backtrace(pid_t child)
         _UPT_destroy(ui);
         if (-init_state == UNW_EINVAL) 
         {
-            printf("unw_init_remote: UNW_EINVAL\n");
+            printf("\033[1;31munw_init_remote: UNW_EINVAL\033[1m\n");
             return 1;
         } 
         else if (-init_state == UNW_EUNSPEC) 
         {
-            printf("unw_init_remote: UNW_EUNSPEC\n");
+            printf("\033[1;31munw_init_remote: UNW_EUNSPEC\033[1m\n");
             return 2;
         } 
         else if (-init_state == UNW_EBADREG) 
         {
-            printf("unw_init_remote: UNW_EBADREG\n");
+            printf("\033[1;31munw_init_remote: UNW_EBADREG\033[1m\n");
             return 3;
         } 
         else 
         {
-	        printf("unw_init_remote: UNKNOWN\n");
+	        printf("\033[1;31munw_init_remote: UNKNOWN\033[1m\n");
 	        return 4;
 	    }
     }
@@ -82,7 +82,7 @@ int detach(pid_t child)
 	long status = ptrace(PTRACE_DETACH, child, 0, 0);
 	if(status==-1)
 	{
-		printf("Error on PTRACE_DETACH\n");
+		printf("\033[1;31mError on PTRACE_DETACH\033[1m\n");
 		return 6;
 	}
 
@@ -139,7 +139,7 @@ void get_reg()
 	for(int i = 0; i < 17; i++)
 	{
 		unw_get_reg(&cursor, i, &ip);
-		printf("%s\t%lx\t%lu\n",name[i],ip,ip);
+		printf("\033[0;32m%s\t\033[0;33m%lx\t%lu\033[0m\n",name[i],ip,ip);
 	}
 
 	unw_fpreg_t reg;
@@ -149,9 +149,9 @@ void get_reg()
 	{
 		if(unw_get_fpreg(&cursor, i, &reg)<0)
 		{
-			printf("Error when reading on %s\n",name[i]);
+			printf("\033[1;31mError when reading on %s\033[1m\n",name[i]);
 		}
-		printf("%s\t%Lf\n",name[i],reg);
+		printf("\033[0;32m%s\t\033[0;33m%Lf\033[0m\n",name[i],reg);
 	}
 }
 
@@ -169,13 +169,13 @@ void backtrace()
 
 		unw_get_reg(&cursor, UNW_REG_IP, &ip);
 		unw_get_reg(&cursor, UNW_REG_SP, &sp);
-		printf("ip: %lx\tsp: %lx\n",ip, sp);
+		printf("\033[0;32mip: \033[0;33m%lx\t\033[0;32msp: \033[0;33m%lx\n\033[0m",ip, sp);
 
 		unw_proc_info_t proc_info;
 		unw_get_proc_name(&cursor, sym, sizeof(sym), &offset);
 		unw_get_proc_info(&cursor, &proc_info);
 
-		printf("%lx: <%s+0x%lx>\n\n",proc_info.start_ip ,sym, offset);
+		printf("\033[0;33m%lx\033[0m: <\033[0;34m%s\033[0m+\033[0;33m0x%lx\033[0m>\n\n",proc_info.start_ip ,sym, offset);
 		ret = unw_step(&cursor);
 	}
 	cursor = BASE_cursor;	
@@ -260,7 +260,7 @@ void backtrace_fct()
 	}
 	else
 	{
-		printf("Error: can't backtrace: no program are running\n");
+		printf("\033[1;35mError: can't backtrace: no program are running\033[1m\n");
 	}
 
 }
@@ -275,7 +275,7 @@ void reg()
 	}
 	else
 	{
-		printf("No stack frame to read register from\n");
+		printf("\033[1;35mNo stack frame to read register from, try to 'run' first\033[1m\n");
 	}
 	printf("\n");
 }
@@ -289,12 +289,12 @@ void prev()
 		int status = unw_step(&cursor);
 		if(status <= 0)
 		{
-			printf("No more stack frame to unwind\n");
+			printf("\033[1;35mNo more stack frame to unwind033[1m\n");
 		}
 	}
 	else
 	{
-		printf("Error: Not running\n");
+		printf("\033[1;35mError: Not running\033[1m\n");
 	}
     printf("\n");
 }
@@ -307,16 +307,16 @@ void step()
 	waitpid(child,&wstatus,WUNTRACED);
 	if(status && WIFEXITED(wstatus)) 
 	{
-		printf("The program %d exited normally\n",child);
+		printf("\033[0;35mThe program: \033[0;33m%d \033[0;35mexited normally\033[0m\n",child);
 	}
 	else if(status && WIFSIGNALED(wstatus))
 	{
 		siginfo_t result;
 		ptrace(PTRACE_GETSIGINFO, child, 0, &result);
 		#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
-			printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
+			printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
 		#else
-		    printf("Program receiv the signal %d: SIG%s: %s\nError raised at 0x%p\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
+		    printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
 		#endif
 	}
 }
