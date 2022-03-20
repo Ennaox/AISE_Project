@@ -16,4 +16,4 @@ crash: crash.c
 	gcc crash.c -o crash -g
 
 clean:
-	rm -f main
+	rm -f main crash dbg
