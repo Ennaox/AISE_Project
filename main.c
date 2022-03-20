@@ -58,31 +58,6 @@ char isAttach = 1;
 //variable nous permettant de vérifier si le programme fonctionne
 char isRunning = 0;
 
-//fonction qui permet au debugger de s'attacher au programme a vérifier
-int attach(pid_t child)
-{
-	int waitStat = 0;
-    int waitRes = waitpid(child, &waitStat, WUNTRACED);
-
-    ptrace(PTRACE_CONT, child, NULL,NULL);
-    waitpid(child, &waitStat, WUNTRACED);
-    ptrace(PTRACE_CONT, child, NULL,NULL);
-    return 0;
-}
-
-//fonction qui permet de se détacher du programme une fois que l'on a terminé
-int detach(pid_t child)
-{
-	long status = ptrace(PTRACE_DETACH, child, 0, 0);
-	if(status==-1)
-	{
-		printf("Error on PTRACE_DETACH\n");
-		return 6;
-	}
-
-	return 0;
-}
-
 //fonction qui initialise tous les pointeurs et variables utilise par libunwind
 //pour faire un backtrace
 int init_backtrace(pid_t child)
@@ -130,6 +105,32 @@ int init_backtrace(pid_t child)
     }
     return 0;
 }
+
+//fonction qui permet au debugger de s'attacher au programme a vérifier
+int attach(pid_t child)
+{
+	int waitStat = 0;
+    waitpid(child, &waitStat, WUNTRACED);
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+    waitpid(child, &waitStat, WUNTRACED);
+    ptrace(PTRACE_CONT, child, NULL,NULL);
+    return 0;
+}
+
+//fonction qui permet de se détacher du programme une fois que l'on a terminé
+int detach(pid_t child)
+{
+	long status = ptrace(PTRACE_DETACH, child, 0, 0);
+	if(status==-1)
+	{
+		printf("Error on PTRACE_DETACH\n");
+		return 6;
+	}
+
+	return 0;
+}
+
+
 
 //fonction nous permettant de récupérer la valeur de tout les registres indiqué
 //dans la fonction
@@ -253,16 +254,18 @@ int run(arg_struct arg)
 		}
 
   		int waitStat = 0;
-    	int waitRes = waitpid(child, &waitStat, WUNTRACED);
+    	waitpid(child, &waitStat, WUNTRACED);
 
-  		init_backtrace(child);
 
   		if(WIFEXITED(waitStat))
   		{
   			printf("The program: %d exited normally\n",child);
+  			child = 0;
+  			isRunning = 0;
   		}
   		else
-  		{
+  		{	
+  			init_backtrace(child);
   			if(WIFSIGNALED(waitStat))
   			{
   				siginfo_t result;
