@@ -16,7 +16,7 @@ void print_param(PARAMETERS *param)
 	}
 	else
 	{
-		printf("PARAMETERS pointer is NULL\n");
+		printf("\033[1;31mPARAMETERS pointer is NULL\033[1m\n");
 	}
 }
 
@@ -36,7 +36,7 @@ void print_vars(VARIABLES *vars)
 	}
 	else
 	{
-		printf("VARIABLES pointer is NULL\n");
+		printf("\033[1;31mVARIABLES pointer is NULL\033[1m\n");
 	}
 }
 
@@ -69,7 +69,7 @@ void print_subprogram(SUBPROGRAM *sub)
 	}
 	else
 	{
-		printf("\033[1;35mSUBPROGRAM pointer is NULL\033[1m\n");
+		printf("\033[1;31mSUBPROGRAM pointer is NULL\033[1m\n");
 	}
 
 }
