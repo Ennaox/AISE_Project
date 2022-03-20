@@ -209,11 +209,11 @@ void breakpoint(unsigned addr)
 	unsigned data = ptrace(PTRACE_PEEKTEXT, child, addr, 0);
 	if(data == -1)
 	{
-		printf("Error: the breackpoint failed\n");
+		printf("\033[1;31mError: the breackpoint failed\033[0m\n");
 	}
 }
 
-//nob fonctionnelle
+//non fonctionnelle
 void read_elf(char *name)
 {
 	void* buf = NULL;
@@ -226,7 +226,7 @@ void read_elf(char *name)
 
 	if(f < 0)
 	{
-		printf("Error: can't open file\n");
+		printf("\033[1;31mError: can't open file\033[0m\n");
 	}
 
 	fstat(f, &stat);
@@ -358,7 +358,7 @@ void freg()
 	if(isRunning)
 	{
 		printf("\n");
-		printf("function not implemented yet\n");
+		printf("\033[1;31mfunction not implemented yet\033[1m\n");
 		get_freg();
 	}
 	else
@@ -587,7 +587,7 @@ int main(int argc, char *argv[])
 		}
 		else if (!strcmp(parsed.eargv[0], "b"))
 		{
-			printf("Error: function not implemented yet\n");
+			printf("\033[1;31mError: function not implemented yet\033[1m\n");
 			if(parsed.eargc >= 2)
 			{
 				breakpoint(atol(parsed.eargv[1]));
@@ -624,9 +624,9 @@ int main(int argc, char *argv[])
 		}
 		else if (!strcmp(parsed.eargv[0],"elf"))
 		{
-			printf("Warning: function not fully implemented yet\n");
+			printf("\033[1;31mWarning: function not fully implemented yet\033[1m\n");
 			read_elf(arg.eargv[0]);
-			printf("\nWarning: function not fully implemented yet\n");
+			printf("\n\033[1;31mWarning: function not fully implemented yet\033[1m\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"reset"))
 		{

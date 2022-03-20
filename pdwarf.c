@@ -1,5 +1,17 @@
 #include "pdwarf.h"
 
+//Pointeur vers la liste des fonctions
+SUBPROGRAM *fcts_l;
+
+//Pointeur vers la dernière fonction de la liste
+SUBPROGRAM *last_fct;
+
+//Pointeur vers la dernière variable de la liste
+VARIABLES *last_vars;
+
+//Pointeur vers le derniers paramètres de la liste
+PARAMETERS *last_params;
+
 //Permet d'afficher le contenu de la liste des paramètres d'une fonction
 void print_param(PARAMETERS *param)
 {
@@ -55,11 +67,6 @@ void print_subprogram(SUBPROGRAM *sub)
 		printf("\t\033[0;32mhigh_pc: \033[0;33m%s\033[0m\n",sub->high_pc);
 		printf("\t\033[0;32mdeclaration line: \033[0;33m%s\033[0m\n",sub->decl_line);
 
-		if(sub->next != NULL)
-		{
-			print_subprogram(sub->next);
-		}
-
 		if(sub->params != NULL)
 		{
 			print_param(sub->params);
@@ -69,6 +76,13 @@ void print_subprogram(SUBPROGRAM *sub)
 		{
 			print_vars(sub->vars);
 		}
+		
+		if(sub->next != NULL)
+		{
+			print_subprogram(sub->next);
+		
+		}
+
 	}
 	else
 	{

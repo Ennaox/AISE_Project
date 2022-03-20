@@ -57,16 +57,16 @@ typedef struct subprogram
 } SUBPROGRAM;
 
 //Pointeur vers la liste des fonctions
-SUBPROGRAM *fcts_l;
+extern SUBPROGRAM *fcts_l;
 
 //Pointeur vers la dernière fonction de la liste
-SUBPROGRAM *last_fct;
+extern SUBPROGRAM *last_fct;
 
 //Pointeur vers la dernière variable de la liste
-VARIABLES *last_vars;
+extern VARIABLES *last_vars;
 
 //Pointeur vers le derniers paramètres de la liste
-PARAMETERS *last_params;
+extern PARAMETERS *last_params;
 
 //Permet d'afficher le contenu de la liste des paramètres d'une fonction
 void print_param(PARAMETERS *param);
