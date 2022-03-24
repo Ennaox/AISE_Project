@@ -624,9 +624,7 @@ int main(int argc, char *argv[])
 		}
 		else if (!strcmp(parsed.eargv[0],"elf"))
 		{
-			printf("\033[1;31mWarning: function not fully implemented yet\033[1m\n");
 			read_elf(arg.eargv[0]);
-			printf("\n\033[1;31mWarning: function not fully implemented yet\033[1m\n");
 		}
 		else if(!strcmp(parsed.eargv[0],"reset"))
 		{
@@ -652,6 +650,10 @@ int main(int argc, char *argv[])
 				info(arg.eargv[0]);
 				if(parsed.eargc >= 2 && !strcmp(parsed.eargv[1],"full"))
 				{
+					fcts_l = NULL; //Remplacer par free
+					last_fct = NULL; //Ne pas free
+					last_vars = NULL; //Ne pas free
+					last_params = NULL; //Ne pas free
 					parse_dwarf(arg.eargv[0]);
 					print_subprogram(fcts_l);
 				}
