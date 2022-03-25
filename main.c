@@ -5,7 +5,7 @@
 	'r' or 'run' to launch the sub process and start the tracing
 	'p' or 'prev' to unwind stack frame 
 	's' or 'step' to step forward the execution of the program
-	'b' to make a breakcpoint
+	'b' to make a breakpoint
 	'bt' or 'backtrace' to show the bactrace of the program
 	'reg' or 'register' to show the register of the program
 	'freg' or 'fregister' to show the floating point register of the program
@@ -13,7 +13,7 @@
 	'info' to show basic info of the program
 	'info full' to show full info of the program
 	'elf' to show basic elf info of the program
-	'attach to attach the debugger to the binary we need to debug'
+	'attach' to attach the debugger to the binary we need to debug'
 	'reset' to reset the cursor to the top of the stack
 	'clear' to clear the terminal
 	'quit' to quit the program
@@ -512,7 +512,7 @@ void interface_affic()
 		"\t-'r' or 'run' to launch the sub process and start the tracing\n"
 		"\t-'p' or 'prev' to unwind stack frame\n"
 		"\t-'s' or 'step' to step forward the execution of the program\n"
-		"\t-'b' to make a breakcpoint\n"
+		"\t-'b' to make a breakpoint\n"
 		"\t-'bt' or 'backtrace' to show the bactrace of the program\n"
 		"\t-'reg' or 'register' to show the register of the program\n"
 		"\t-'freg' or 'fregister' to show the floating point register of the program\n"
