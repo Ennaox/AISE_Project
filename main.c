@@ -304,9 +304,9 @@ int run(arg_struct arg)
 		    	ptrace(PTRACE_GETSIGINFO, child, 0, &result);
 				printf("\n");
 				#if __GLIBC__ >=2 && __GLIBC_MINOR__>=32
-				printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
+				printf("\033[1;35mProgram receiv the signal\033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,sigabbrev_np(result.si_signo),strsignal(result.si_signo),result.si_addr);
 		    	#else
-		    	printf("\033[1;35mProgram receiv the signal Yellow \033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
+		    	printf("\033[1;35mProgram receiv the signal\033[0;33m%d\033[1;35m: SIG\033[0;33m%s: %s\n\033[1;35mError raised at \033[0;33m0x%p\033[0m\n",result.si_signo,"",strsignal(result.si_signo),result.si_addr);
 		    	#endif
 
   		}
